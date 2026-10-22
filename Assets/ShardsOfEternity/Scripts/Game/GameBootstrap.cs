@@ -13,8 +13,20 @@ namespace ShardsOfEternity.Game
         [Tooltip("Hero ids: kael, bram, nyra, ilse, wren, tova. Pick 4.")]
         public List<string> squad = new List<string>(Roster.DefaultSquad);
 
-        [Tooltip("Start in a procedurally generated room instead of the handmade prototype room.")]
-        public bool useGeneratedRoom;
+        [Tooltip("Dungeons have 3-4 floors, raids have 12. The last floor has the boss.")]
+        public RunKind runKind = RunKind.Dungeon;
+
+        [Tooltip("Use the browser prototype's handmade room for floor 1.")]
+        public bool handmadeFirstFloor;
+
+        [Tooltip("Experimental: 2 action shards per turn, spent on any mix of moves, attacks and abilities.")]
+        public bool useActionShards;
+
+        [Tooltip("With action shards, keep unspent shards for later turns, up to 4.")]
+        public bool bankShards;
+
+        [Tooltip("Seconds of unpaused play between reinforcement waves once a room is awake.")]
+        public float reinforcementInterval = 120f;
 
         [Tooltip("Room and crit seed. 0 picks a random one each time.")]
         public int seed;
@@ -51,9 +63,13 @@ namespace ShardsOfEternity.Game
             controller.Board = board;
             controller.Hud = hud;
             controller.Squad = new List<string>(squad);
-            controller.UseGeneratedRoom = useGeneratedRoom;
+            controller.RunKind = runKind;
+            controller.HandmadeFirstFloor = handmadeFirstFloor;
+            controller.UseActionShards = useActionShards;
+            controller.BankShards = bankShards;
+            controller.ReinforcementInterval = reinforcementInterval;
             controller.Seed = seed;
-            controller.NewBattle();
+            controller.NewRun();
         }
     }
 }

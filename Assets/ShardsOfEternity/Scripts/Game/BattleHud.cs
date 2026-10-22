@@ -111,7 +111,36 @@ namespace ShardsOfEternity.Game
             GUILayout.EndScrollView();
             GUILayout.EndArea();
 
-            if (Battle != null && Battle.IsOver) DrawGameOver(vw, vh);
+            if (Battle != null && (Battle.Outcome == BattleOutcome.Victory || Battle.Outcome == BattleOutcome.Defeat)) DrawGameOver(vw, vh);
+            else if (Battle != null && Battle.Outcome == BattleOutcome.FloorComplete) DrawBanner(vw, vh, $"Descending to floor {Controller.Run.Floor + 1}...");
+            else if (Controller.Paused) DrawPaused(vw, vh);
+        }
+
+        Rect CenterRect(float vw, float vh, float w, float h)
+        {
+            var rect = new Rect(vw / 2 - w / 2, vh / 2 - h / 2, w, h);
+            if (!Portrait) rect.x = (vw - PanelWidth) / 2 - w / 2;
+            return rect;
+        }
+
+        void DrawBanner(float vw, float vh, string text)
+        {
+            var rect = CenterRect(vw, vh, 320, 60);
+            GUI.Box(rect, GUIContent.none);
+            GUI.Label(rect, $"<b>{text}</b>", new GUIStyle(title) { alignment = TextAnchor.MiddleCenter });
+        }
+
+        void DrawPaused(float vw, float vh)
+        {
+            var rect = CenterRect(vw, vh, 300, 130);
+            hudRects.Add(rect);
+            GUI.Box(rect, GUIContent.none);
+            GUI.Box(rect, GUIContent.none);
+            GUILayout.BeginArea(new Rect(rect.x + 16, rect.y + 12, rect.width - 32, rect.height - 24));
+            GUILayout.Label("Paused", title);
+            GUILayout.Label("The reinforcement timer is stopped.", label);
+            if (GUILayout.Button("Resume [P]", GUILayout.MinHeight(36))) Controller.SetPaused(false);
+            GUILayout.EndArea();
         }
 
         // ---------- board overlays ----------
@@ -169,6 +198,11 @@ namespace ShardsOfEternity.Game
 
         void DrawTimeline(Rect top)
         {
+            const float statusWidth = 250f;
+            var status = new Rect(top.xMax - statusWidth, top.y, statusWidth, top.height);
+            DrawRunStatus(status);
+            top.width -= statusWidth;
+
             var items = Battle.Forecast(10);
             float x = top.x + 8, w = Mathf.Min(86, (top.width - 16) / Mathf.Max(1, items.Count) - 4);
             for (int i = 0; i < items.Count; i++)
@@ -180,6 +214,25 @@ namespace ShardsOfEternity.Game
                 x += w + 4;
             }
             GUI.color = Color.white;
+        }
+
+        /// <summary>Floor counter, the reinforcement countdown and the pause button.</summary>
+        void DrawRunStatus(Rect r)
+        {
+            var run = Controller.Run;
+            string timer;
+            if (Battle.FloorCleared) timer = "Room clear";
+            else if (!Battle.InCombat) timer = "Reinforcements: room asleep";
+            else
+            {
+                int secs = Mathf.CeilToInt(Controller.ReinforcementCountdown);
+                string clock = $"{secs / 60}:{secs % 60:00}";
+                timer = secs <= 15 ? $"<color=#FF7A6E>Reinforcements {clock}</color>" : $"Reinforcements {clock}";
+            }
+            GUI.Label(new Rect(r.x, r.y + 6, r.width - 70, 22), $"<b>{(run.Kind == RunKind.Raid ? "Raid" : "Dungeon")} · floor {run.Floor}/{run.FloorCount}</b>", label);
+            GUI.Label(new Rect(r.x, r.y + 28, r.width - 70, 22), timer, label);
+            if (GUI.Button(new Rect(r.xMax - 66, r.y + 10, 58, r.height - 20), Controller.Paused ? "Resume" : "Pause"))
+                Controller.SetPaused(!Controller.Paused);
         }
 
         // ---------- side panel ----------
@@ -202,9 +255,16 @@ namespace ShardsOfEternity.Game
                 GUI.color = Color.white;
             }
             GUILayout.Space(8);
-            Controller.UseGeneratedRoom = GUILayout.Toggle(Controller.UseGeneratedRoom, " Random generated room (otherwise the prototype room)");
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Toggle(Controller.RunKind == RunKind.Dungeon, " Dungeon (3-4 floors)")) Controller.RunKind = RunKind.Dungeon;
+            if (GUILayout.Toggle(Controller.RunKind == RunKind.Raid, $" Raid ({DungeonRun.RaidFloors} floors)")) Controller.RunKind = RunKind.Raid;
+            GUILayout.EndHorizontal();
+            Controller.HandmadeFirstFloor = GUILayout.Toggle(Controller.HandmadeFirstFloor, " Floor 1 is the browser prototype's room");
+            Controller.UseActionShards = GUILayout.Toggle(Controller.UseActionShards, " Action shards (experimental): 2 per turn, spend on any mix of moves and actions");
+            if (Controller.UseActionShards)
+                Controller.BankShards = GUILayout.Toggle(Controller.BankShards, "     Bank unspent shards, up to 4");
             GUI.enabled = Controller.SquadReady;
-            if (GUILayout.Button("<b>Enter the rift</b>", button, GUILayout.MinHeight(44))) Controller.NewBattle();
+            if (GUILayout.Button("<b>Enter the rift</b>", button, GUILayout.MinHeight(44))) Controller.NewRun();
             GUI.enabled = true;
         }
 
@@ -225,7 +285,10 @@ namespace ShardsOfEternity.Game
 
             if (hero)
             {
-                GUILayout.Label($"Move <b>{(u.Moved ? "used" : "ready")}</b> · Action <b>{(u.Acted ? "used" : "ready")}</b>", label);
+                if (Battle.Rules.UseActionShards)
+                    GUILayout.Label($"Action shards <b><color=#B07CF0>{new string('◆', u.Shards)}</color>{new string('◇', Mathf.Max(0, Battle.Rules.ShardCap - u.Shards))}</b>  <size=12>each move, attack or ability costs 1</size>", label);
+                else
+                    GUILayout.Label($"Move <b>{(u.Moved ? "used" : "ready")}</b> · Action <b>{(u.Acted ? "used" : "ready")}</b>", label);
                 for (int i = 0; i < u.Abilities.Length; i++) AbilityButton(u, i, canAct);
                 GUI.enabled = canAct;
                 if (GUILayout.Button($"<b>[E] End turn</b>  <size=12>next turn in {Mathf.RoundToInt((float)u.TurnInterval + u.Recovery)}</size>", button, GUILayout.MinHeight(36)))
@@ -243,7 +306,7 @@ namespace ShardsOfEternity.Game
             float pw = pips.width / 12f;
             for (int i = 0; i < 12; i++)
             {
-                bool marked = i + 1 == 2 || i + 1 == Battle.FirstWave || i + 1 == Battle.FirstShift;
+                bool marked = i + 1 == 2 || (i + 1 >= Battle.FirstShift && (i + 1 - Battle.FirstShift) % 4 == 0);
                 Bar(new Rect(pips.x + i * pw + 1, pips.y, pw - 2, 8), i < Mathf.Min(p, 12) ? 1 : 0,
                     marked ? Palette.Hex(Battle.Layout.Theme.AccentColor) : Palette.AbilityTarget);
             }
@@ -253,16 +316,11 @@ namespace ShardsOfEternity.Game
 
             GUILayout.Space(6);
             GUILayout.BeginHorizontal();
-            if (GUILayout.Button("Restart")) Controller.NewBattle();
-            if (GUILayout.Button("New random room"))
-            {
-                Controller.UseGeneratedRoom = true;
-                Controller.NewBattle();
-            }
-            if (GUILayout.Button("Change squad"))
+            if (GUILayout.Button("New run")) Controller.NewRun();
+            if (GUILayout.Button("Change squad / rules"))
             {
                 Controller.Squad.Clear();
-                Controller.NewBattle();
+                Controller.NewRun();
             }
             GUILayout.EndHorizontal();
             string room = Battle.Layout.Seed >= 0 ? $"{Battle.Layout.Theme.Name}, seed {Battle.Layout.Seed}" : "Prototype room";
@@ -336,7 +394,8 @@ namespace ShardsOfEternity.Game
                     return s;
                 }
             }
-            if (u.Moved && u.Acted) return "Turn complete.";
+            if (Battle.CurrentTurnSpent) return "Turn complete.";
+            if (Battle.FloorCleared) return "Room clear. Walk any hero onto the green rift door to go to the next floor.";
             if (!Battle.InCombat) return "Explore the room. The enemies wake when a hero comes within 5 tiles in sight.";
             return "Click a highlighted tile to move, or a red enemy to attack. Keys 1-4 pick abilities, E ends the turn.";
         }
@@ -344,22 +403,22 @@ namespace ShardsOfEternity.Game
         void DrawGameOver(float vw, float vh)
         {
             bool win = Battle.Outcome == BattleOutcome.Victory;
-            var rect = new Rect(vw / 2 - 170, vh / 2 - 90, 340, 180);
-            if (!Portrait) rect.x = (vw - PanelWidth) / 2 - 170;
+            var rect = CenterRect(vw, vh, 340, 180);
             hudRects.Add(rect);
             GUI.Box(rect, GUIContent.none);
             GUI.Box(rect, GUIContent.none);
             GUILayout.BeginArea(new Rect(rect.x + 16, rect.y + 12, rect.width - 32, rect.height - 24));
-            GUILayout.Label(win ? "Room cleared" : "Squad defeated", title);
+            var run = Controller.Run;
+            GUILayout.Label(win ? "Rift sealed" : "Squad defeated", title);
             GUILayout.Label(win
-                ? $"The rift door is open. {Battle.Heroes.Count()} of 4 heroes standing, rift pressure {Battle.Pressure}."
-                : $"The rift claimed your squad at rift pressure {Battle.Pressure}.", label);
+                ? $"The Rift Lord is dead and all {run.FloorCount} floors are cleared. {Battle.Heroes.Count()} of 4 heroes standing."
+                : $"The rift claimed your squad on floor {run.Floor} of {run.FloorCount}.", label);
             GUILayout.BeginHorizontal();
-            if (GUILayout.Button("Play again", GUILayout.MinHeight(36))) Controller.NewBattle();
-            if (GUILayout.Button("New random room", GUILayout.MinHeight(36)))
+            if (GUILayout.Button("New run", GUILayout.MinHeight(36))) Controller.NewRun();
+            if (GUILayout.Button("Change squad / rules", GUILayout.MinHeight(36)))
             {
-                Controller.UseGeneratedRoom = true;
-                Controller.NewBattle();
+                Controller.Squad.Clear();
+                Controller.NewRun();
             }
             GUILayout.EndHorizontal();
             GUILayout.EndArea();

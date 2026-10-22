@@ -26,11 +26,22 @@ namespace ShardsOfEternity.Game
         public BattleHud Hud;
 
         public List<string> Squad = new List<string>(Roster.DefaultSquad);
-        public bool UseGeneratedRoom;
+        public RunKind RunKind = RunKind.Dungeon;
+        /// <summary>Floor 1 uses the handmade prototype room instead of a generated one.</summary>
+        public bool HandmadeFirstFloor;
         public int Seed;
+        /// <summary>Experimental: spend action shards on any mix of moves and actions.</summary>
+        public bool UseActionShards;
+        /// <summary>With action shards, unspent shards carry over to later turns, up to 4.</summary>
+        public bool BankShards;
+        /// <summary>Seconds of unpaused play between reinforcement waves once a room is awake.</summary>
+        public float ReinforcementInterval = 120f;
 
-        public Battle Battle { get; private set; }
+        public DungeonRun Run { get; private set; }
+        public Battle Battle => Run?.Battle;
         public bool Busy { get; private set; }
+        public bool Paused { get; private set; }
+        public float ReinforcementCountdown { get; private set; }
         /// <summary>Index of the ability being aimed, or -1 when moving and attacking.</summary>
         public int AbilityIndex { get; private set; } = -1;
         public Point? Hover { get; private set; }
@@ -40,32 +51,84 @@ namespace ShardsOfEternity.Game
 
         public bool SquadReady => Squad.Count == 4;
 
-        public void NewBattle()
+        public void NewRun()
         {
             StopAllCoroutines();
+            SetPaused(false);
             if (!SquadReady)
             {
-                Battle = null;
+                Run = null;
                 Options = null;
                 return;
             }
             int seed = Seed != 0 ? Seed : Random.Range(1, int.MaxValue);
-            var room = UseGeneratedRoom ? RoomGenerator.Generate(seed) : RoomLayout.Prototype();
-            Battle = new Battle(room, Squad, seed);
+            Run = new DungeonRun(RunKind, Squad, seed, handmadeFirstFloor: HandmadeFirstFloor)
+            {
+                Rules = new TurnRules { UseActionShards = UseActionShards, ShardsPerTurn = 2, ShardCap = BankShards ? 4 : 2 },
+            };
+            Run.NextFloor();
+            BeginFloor();
+        }
+
+        void BeginFloor()
+        {
             Board.Build(Battle);
             AbilityIndex = -1;
             Pending = null;
             Hover = null;
-            Battle.Start();
+            ReinforcementCountdown = ReinforcementInterval;
             StartCoroutine(Advance());
+        }
+
+        IEnumerator Descend()
+        {
+            Busy = true;
+            Refresh();
+            yield return new WaitForSeconds(0.8f);
+            Run.NextFloor();
+            BeginFloor();
+        }
+
+        public void SetPaused(bool paused)
+        {
+            Paused = paused;
+            Time.timeScale = paused ? 0f : 1f;
         }
 
         void Update()
         {
             if (Camera != null && Board != null) Board.FrameCamera(Camera);
             if (Battle == null) return;
+            if (Input.GetKeyDown(KeyCode.P)) SetPaused(!Paused);
+            if (Paused) return;
+            TickReinforcements();
             HandleKeys();
             HandlePointer();
+        }
+
+        /// <summary>Real-time countdown. Time.deltaTime is 0 while paused, so pausing stops it.</summary>
+        void TickReinforcements()
+        {
+            if (!Battle.ReinforcementsActive) return;
+            ReinforcementCountdown = Mathf.Max(0, ReinforcementCountdown - Time.deltaTime);
+            // Waves land between actions: while something is animating, the turn loop picks them up instead.
+            if (ReinforcementCountdown <= 0 && !Busy) StartCoroutine(ReinforceNow());
+        }
+
+        IEnumerator ReinforceNow()
+        {
+            Busy = true;
+            yield return CallReinforcementsIfDue();
+            Busy = false;
+            Refresh();
+        }
+
+        IEnumerator CallReinforcementsIfDue()
+        {
+            if (ReinforcementCountdown > 0 || !Battle.ReinforcementsActive) yield break;
+            ReinforcementCountdown = ReinforcementInterval;
+            Battle.CallReinforcements();
+            yield return PlayEvents();
         }
 
         // ---------- turn loop ----------
@@ -78,6 +141,7 @@ namespace ShardsOfEternity.Game
             yield return PlayEvents();
             while (!Battle.IsOver && Battle.Current != null && Battle.Current.IsEnemy)
             {
+                yield return CallReinforcementsIfDue();
                 Board.SyncUnits();
                 Refresh();
                 yield return new WaitForSeconds(0.35f);
@@ -101,6 +165,11 @@ namespace ShardsOfEternity.Game
             Refresh();
             yield return PlayEvents();
             Board.SyncUnits();
+            if (Battle.Outcome == BattleOutcome.FloorComplete)
+            {
+                yield return Descend();
+                yield break;
+            }
             if (!Battle.IsOver && Battle.CurrentTurnSpent)
             {
                 Refresh();
@@ -127,7 +196,7 @@ namespace ShardsOfEternity.Game
             Board.RefreshTiles(Options, Pending ?? Hover);
         }
 
-        bool CanCommand => Battle != null && !Busy && !Battle.IsOver && Battle.Current != null && Battle.Current.IsHero;
+        bool CanCommand => Battle != null && !Busy && !Paused && !Battle.IsOver && Battle.Current != null && Battle.Current.IsHero;
 
         HeroOptions ComputeOptions()
         {
@@ -148,7 +217,7 @@ namespace ShardsOfEternity.Game
             }
             else
             {
-                if (!u.Moved) options.Moves = Battle.MoveOptions(u);
+                if (Battle.CanMove(u)) options.Moves = Battle.MoveOptions(u);
                 options.Attacks = Battle.AttackTargets(u);
             }
             return options;

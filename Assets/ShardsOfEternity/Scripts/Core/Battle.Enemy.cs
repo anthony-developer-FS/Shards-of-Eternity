@@ -87,8 +87,17 @@ namespace ShardsOfEternity.Core
             targets = Heroes.Where(h => CanHitFrom(u, u.X, u.Y, h)).ToList();
             if (targets.Count > 0)
             {
-                var target = targets.OrderBy(h => h.Hp - GetDamageInfo(u, h).Damage).First();
-                Strike(u, target, u.Damage);
+                if (u.Def.IsBoss)
+                {
+                    // Cleave: the boss hits every hero in reach.
+                    foreach (var h in targets)
+                        if (u.Alive && !IsOver) Strike(u, h, u.Damage);
+                }
+                else
+                {
+                    var target = targets.OrderBy(h => h.Hp - GetDamageInfo(u, h).Damage).First();
+                    Strike(u, target, u.Damage);
+                }
             }
             u.Rooted = false;
         }

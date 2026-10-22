@@ -23,6 +23,8 @@ namespace ShardsOfEternity.Core
         Ghoul,
         Imp,
         Hellknight,
+        /// <summary>Boss of a run's final floor.</summary>
+        RiftLord,
     }
 
     /// <summary>Base stats for a hero or enemy. Gear and buffs are applied on the runtime <see cref="Unit"/>.</summary>
@@ -33,6 +35,7 @@ namespace ShardsOfEternity.Core
         public string Glyph;
         public string Rule;
         public bool IsEnemy;
+        public bool IsBoss;
         public Race Race;
         public HeroClass HeroClass;
         public EnemyKind EnemyKind;
@@ -75,6 +78,7 @@ namespace ShardsOfEternity.Core
             Enemy(EnemyKind.Ghoul, "Ghoul", "g", 16, 6, 0, 9, 4, 1, "Melee. Shambles toward the nearest hero."),
             Enemy(EnemyKind.Imp, "Imp", "i", 10, 5, 0, 13, 4, 4, "Ranged, 4 tiles. Backs away from melee."),
             Enemy(EnemyKind.Hellknight, "Hellknight", "K", 30, 9, 3, 6, 3, 1, "Slow, armored and hits hard."),
+            Boss(EnemyKind.RiftLord, "Rift Lord", "L", 80, 9, 3, 9, 3, 1, "Boss. Cleaves every hero next to it."),
         };
 
         public static readonly string[] DefaultSquad = { "kael", "bram", "nyra", "ilse" };
@@ -89,6 +93,14 @@ namespace ShardsOfEternity.Core
         {
             foreach (var e in Enemies) if (e.EnemyKind == kind) return e;
             throw new KeyNotFoundException(kind.ToString());
+        }
+
+        static UnitDef Boss(EnemyKind kind, string name, string glyph, int hp, int dmg, int arm, int spd, int move, int range,
+            string rule)
+        {
+            var def = Enemy(kind, name, glyph, hp, dmg, arm, spd, move, range, rule);
+            def.IsBoss = true;
+            return def;
         }
 
         static UnitDef Hero(string id, string name, HeroClass cls, string glyph, int hp, int dmg, int arm, int spd, int move,

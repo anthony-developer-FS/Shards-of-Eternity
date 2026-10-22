@@ -29,6 +29,8 @@ namespace ShardsOfEternity.Core
 
         public bool Moved;
         public bool Acted;
+        /// <summary>Action shards left this turn, when <see cref="TurnRules.UseActionShards"/> is on.</summary>
+        public int Shards;
 
         public readonly int[] Cooldowns = new int[4];
         /// <summary>Ultimate charge, 0 to 100.</summary>
