@@ -1,0 +1,919 @@
+<title>Shards of Eternity Prototype</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;500;700&display=swap">
+<style>
+/* Layout: a stone game board on a dark tabletop, the speed timeline above it, the active hero's card beside it */
+:root{
+  --bg:#16141b; --panel:#201d27; --panel2:#2a2632; --line:#3a3444;
+  --text:#ece4d3; --muted:#a79fb0;
+  --stone:#3b3843; --stone2:#35323d; --wall:#0f0e13;
+  --gold:#d9a441; --ember:#d65a3e; --rift:#a084ee; --move:#5596de; --charge:#e48a3c; --good:#72c184;
+  --display:'IM Fell English SC', 'Iowan Old Style', Georgia, serif;
+  --body:'Alegreya Sans', 'Segoe UI', system-ui, sans-serif;
+  --mono:ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--text)}
+body{font-family:var(--body);font-size:15px;line-height:1.45}
+.app{max-width:1180px;margin:0 auto;padding-block:20px 48px;padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));display:flex;flex-direction:column;gap:16px}
+header{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:flex-end;justify-content:space-between}
+h1{font-family:var(--display);font-weight:400;font-size:clamp(26px,4vw,38px);line-height:1;margin:0;letter-spacing:.01em;text-wrap:balance}
+.sub{margin:4px 0 0;color:var(--muted)}
+.pressure{min-width:min(100%,340px);display:flex;flex-direction:column;gap:6px}
+.pressure .lbl{display:flex;justify-content:space-between;gap:12px;font-size:13px;color:var(--muted)}
+.pressure .lbl b{color:var(--text);font-weight:700}
+.pbar{display:grid;grid-template-columns:repeat(12,1fr);gap:3px}
+.pbar span{height:10px;border-radius:2px;background:var(--panel2);position:relative}
+.pbar span.on{background:var(--rift)}
+.pbar span.mark::after{content:attr(data-m);position:absolute;top:13px;left:50%;transform:translateX(-50%);font-size:10.5px;color:var(--muted);white-space:nowrap;letter-spacing:.04em;text-transform:uppercase}
+.pressure .ticks{height:14px}
+
+.timeline{display:flex;gap:6px;overflow-x:auto;padding:8px;background:var(--panel);border:1px solid var(--line);border-radius:10px;align-items:stretch}
+.timeline .tl-label{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);writing-mode:vertical-rl;transform:rotate(180deg);align-self:center;padding:0 2px}
+.chip{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 8px;border-radius:8px;background:var(--panel2);min-width:58px;cursor:default;border:1px solid transparent}
+.chip.now{border-color:var(--gold);background:color-mix(in srgb,var(--gold) 14%,var(--panel2))}
+.chip .cg{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:13px;border:2px solid var(--gold);background:var(--bg)}
+.chip.foe .cg{border-color:var(--ember);color:#f3b9a8}
+.chip .cn{font-size:12px;white-space:nowrap}
+.chip .ct{font-family:var(--mono);font-size:10.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+
+.main{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:16px;align-items:start}
+@media (max-width:880px){.main{grid-template-columns:minmax(0,1fr)}}
+
+.board{position:relative;width:100%;aspect-ratio:14/11;border-radius:12px;overflow:hidden;border:1px solid var(--line);box-shadow:0 20px 40px -24px #000;container-type:inline-size;background:var(--line);user-select:none;-webkit-user-select:none;touch-action:manipulation}
+.board.shifting{animation:quake .5s}
+@keyframes quake{25%{transform:translateX(-3px)}50%{transform:translateX(3px)}75%{transform:translateX(-2px)}}
+.tiles{position:absolute;inset:0;display:grid;grid-template-columns:repeat(14,1fr);grid-template-rows:repeat(11,1fr);gap:1px}
+.tile{position:relative;background:var(--stone)}
+.tile.alt{background:var(--stone2)}
+.tile.wall{background:var(--wall);box-shadow:inset 0 -3px 0 #000, inset 0 2px 0 #24212b}
+.tile.pillar{background:radial-gradient(circle at 50% 45%,#5a5564 0 30%,#1b1a21 32% 46%,transparent 48%),var(--stone)}
+.tile.spike{background:repeating-linear-gradient(45deg,transparent 0 5px,color-mix(in srgb,var(--ember) 35%,transparent) 5px 7px),var(--stone2)}
+.tile.spike::before{content:"^";position:absolute;inset:0;display:grid;place-items:center;color:color-mix(in srgb,var(--ember) 70%,var(--text));font-size:3cqw;font-weight:700;opacity:.8}
+.tile.exit{background:linear-gradient(90deg,var(--wall),color-mix(in srgb,var(--rift) 30%,var(--wall)))}
+.tile.exit.open{background:radial-gradient(circle,var(--rift),color-mix(in srgb,var(--rift) 30%,var(--wall)))}
+.tile.spawn{background:radial-gradient(circle,color-mix(in srgb,var(--ember) 30%,transparent) 0 40%,transparent 60%),var(--stone)}
+.tile::after{content:"";position:absolute;inset:0;pointer-events:none}
+.tile.hl-walk::after{background:color-mix(in srgb,var(--move) 30%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--move) 70%,transparent)}
+.tile.hl-charge::after{background:color-mix(in srgb,var(--charge) 30%,transparent);box-shadow:inset 0 0 0 1px var(--charge)}
+.tile.hl-blink::after{background:color-mix(in srgb,var(--rift) 28%,transparent);box-shadow:inset 0 0 0 1px var(--rift)}
+.tile.hl-swap::after{background:color-mix(in srgb,var(--good) 30%,transparent);box-shadow:inset 0 0 0 1px var(--good)}
+.tile.hl-ab::after{background:color-mix(in srgb,var(--ember) 22%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ember) 70%,transparent)}
+.tile.area::after{background:color-mix(in srgb,var(--ember) 50%,transparent)}
+.tile.tele-wall::after{box-shadow:inset 0 0 0 2px var(--ember);background:repeating-linear-gradient(-45deg,color-mix(in srgb,var(--ember) 35%,transparent) 0 4px,transparent 4px 8px);animation:pulse 1.2s infinite}
+.tile.tele-open::after{box-shadow:inset 0 0 0 2px #6fd3d6;animation:pulse 1.2s infinite}
+.tile.hover::after{outline:2px solid var(--text);outline-offset:-2px}
+@keyframes pulse{50%{opacity:.45}}
+@media (prefers-reduced-motion:reduce){.tile.tele-wall::after,.tile.tele-open::after,.tok.target .disc,.board.shifting{animation:none}}
+
+.tokens{position:absolute;inset:0;pointer-events:none}
+.tok{position:absolute;width:calc(100%/14);height:calc(100%/11);display:grid;place-items:center;transition:left .09s linear,top .09s linear,opacity .3s}
+@media (prefers-reduced-motion:reduce){.tok{transition:none}}
+.tok .disc{width:74%;aspect-ratio:1;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:2.6cqw;background:#1d1a23;border:.35cqw solid var(--gold);color:var(--text);box-shadow:0 .4cqw .8cqw #000a}
+.tok.foe .disc{border-color:var(--ember);background:#2a1715;color:#f6c3b4}
+.tok.foe-knight .disc{width:84%}
+.tok.foe-imp .disc{width:62%}
+.tok.active .disc{box-shadow:0 0 0 .4cqw color-mix(in srgb,var(--gold) 55%,transparent),0 0 2cqw var(--gold)}
+.tok.foe.active .disc{box-shadow:0 0 0 .4cqw color-mix(in srgb,var(--ember) 55%,transparent),0 0 2cqw var(--ember)}
+.tok.target .disc{animation:ring 1s infinite;box-shadow:0 0 0 .45cqw var(--ember)}
+.tok.pending .disc{box-shadow:0 0 0 .6cqw var(--text)}
+.tok.hl .disc{box-shadow:0 0 0 .6cqw var(--rift)}
+@keyframes ring{50%{box-shadow:0 0 0 .2cqw var(--ember)}}
+.tok.asleep .disc{opacity:.6}
+.tok .zz{position:absolute;top:2%;right:8%;font-size:1.6cqw;color:var(--muted);display:none;font-style:italic}
+.tok.asleep .zz{display:block}
+.tok .hp{position:absolute;bottom:5%;left:18%;right:18%;height:.6cqw;min-height:3px;background:#000a;border-radius:2px;overflow:hidden}
+.tok .hp i{display:block;height:100%;background:var(--good)}
+.tok.foe .hp i{background:var(--ember)}
+.tok.gone{opacity:0}
+.float{position:absolute;width:calc(100%/14);text-align:center;font-weight:700;font-size:2.4cqw;pointer-events:none;color:#ffd9cc;text-shadow:0 1px 2px #000;animation:rise .9s ease-out forwards}
+.float.crit{color:var(--gold);font-size:3cqw}
+.float.heal{color:var(--good)}
+@keyframes rise{from{transform:translateY(0);opacity:1}to{transform:translateY(-120%);opacity:0}}
+
+.overlay{position:absolute;inset:0;display:grid;place-items:center;background:color-mix(in srgb,var(--bg) 70%,transparent);padding:16px}
+.overlay .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px 24px;text-align:center;max-width:360px;display:flex;flex-direction:column;gap:10px}
+.overlay h2{font-family:var(--display);font-weight:400;font-size:28px;margin:0}
+.overlay p{margin:0;color:var(--muted)}
+
+.side{display:flex;flex-direction:column;gap:12px;min-width:0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}
+.uc-head{display:flex;gap:12px;align-items:center}
+.uc-head .badge{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:18px;border:3px solid var(--gold);background:var(--bg);flex:0 0 auto}
+.uc-head.foe .badge{border-color:var(--ember);color:#f6c3b4}
+.uc-head h2{font-family:var(--display);font-weight:400;font-size:24px;margin:0;line-height:1}
+.uc-head p{margin:2px 0 0;color:var(--muted);font-size:13px}
+.hpline{margin-top:10px;display:flex;align-items:center;gap:8px;font-size:13px;font-variant-numeric:tabular-nums}
+.hpline .bar{flex:1;height:8px;background:var(--bg);border-radius:4px;overflow:hidden}
+.hpline .bar i{display:block;height:100%;background:var(--good)}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px}
+.stats div{background:var(--panel2);border-radius:6px;padding:5px 7px}
+.stats dt{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.stats dd{margin:0;font-weight:700;font-variant-numeric:tabular-nums}
+dl{margin:0}
+.rule{margin:10px 0 0;font-size:13.5px;color:var(--muted)}
+.rule b{color:var(--text)}
+.status{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.pill{font-size:12px;padding:2px 8px;border-radius:999px;background:var(--panel2);color:var(--muted)}
+.pill.ok{background:color-mix(in srgb,var(--good) 20%,var(--panel2));color:var(--text)}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+button{font:inherit;font-weight:700;padding:9px 10px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--text);cursor:pointer}
+button:hover:not(:disabled){border-color:var(--gold)}
+button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+button:disabled{opacity:.45;cursor:not-allowed}
+button.on{background:color-mix(in srgb,var(--ember) 30%,var(--panel2));border-color:var(--ember)}
+button .small{display:block;font-weight:400;font-size:11.5px;color:var(--muted)}
+.preview{margin-top:12px;padding:10px;border-radius:8px;background:var(--bg);font-size:13.5px;min-height:56px}
+.log{font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:4px;max-height:180px;overflow:auto}
+.log p{margin:0}
+.log p:first-child{color:var(--text)}
+.card h3{margin:0 0 8px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.howto{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.howto ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px;font-size:14px}
+.legend{display:flex;flex-wrap:wrap;gap:8px 14px;font-size:13px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:14px;height:14px;border-radius:3px;display:inline-block}
+.squad h3{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 12px}
+.squad h3 span:last-child{text-transform:none;letter-spacing:0;font-weight:400}
+.squad-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px}
+.pick{display:flex;gap:10px;align-items:center;text-align:left;font-weight:400;padding:8px 10px;min-width:0}
+.pick .cg{width:30px;height:30px;flex:0 0 auto;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:13px;border:2px solid var(--line);background:var(--bg)}
+.pick.sel{border-color:var(--gold);background:color-mix(in srgb,var(--gold) 12%,var(--panel2))}
+.pick.sel .cg{border-color:var(--gold)}
+.pick b{display:block}
+.pick small{display:block;color:var(--muted);font-size:12px}
+.pick .slot{margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--gold)}
+.kbd{font-family:var(--mono);font-size:12px;background:var(--panel2);padding:0 5px;border-radius:4px}
+</style>
+
+<div class="app">
+  <header>
+    <div>
+      <h1>Shards of Eternity</h1>
+      <p class="sub">Combat prototype · The Ashen Marches, room 1</p>
+    </div>
+    <div class="pressure" id="pressure"></div>
+  </header>
+
+  <div class="card squad" id="squad"></div>
+
+  <div class="timeline" id="timeline" aria-label="Turn order"></div>
+
+  <div class="main">
+    <div class="board" id="board">
+      <div class="tiles" id="tiles"></div>
+      <div class="tokens" id="tokens"></div>
+      <div id="overlay"></div>
+    </div>
+    <div class="side">
+      <div class="card" id="unit"></div>
+      <div class="card"><h3>Battle log</h3><div class="log" id="log"></div></div>
+    </div>
+  </div>
+
+  <div class="card howto">
+    <div>
+      <h3>How to play</h3>
+      <ul>
+        <li>The timeline shows who acts next. Faster units act more often.</li>
+        <li>On a hero's turn: move once and act once, in either order.</li>
+        <li>Tap a highlighted tile to move. Tap a ringed enemy to preview, tap again to attack. With a mouse, hover to preview and click once.</li>
+        <li>Enemies sleep until a hero comes within 5 tiles in sight.</li>
+        <li>Nobody can move through a hero or end on an occupied tile. Enemies can pass through each other.</li>
+        <li>Leaving an enemy's side gives it a free attack.</li>
+        <li>Rift pressure rises each round once the room wakes. At 4 reinforcements arrive. At 6 the walls shift, and glowing tiles show where one round ahead.</li>
+        <li>Keys: <span class="kbd">A</span> ability, <span class="kbd">E</span> end turn, <span class="kbd">Esc</span> cancel.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Board</h3>
+      <div class="legend">
+        <span><i style="background:color-mix(in srgb,var(--move) 45%,var(--stone))"></i>Walk</span>
+        <span><i style="background:color-mix(in srgb,var(--charge) 45%,var(--stone))"></i>Barbarian charge</span>
+        <span><i style="background:color-mix(in srgb,var(--rift) 45%,var(--stone))"></i>Sorcerer teleport</span>
+        <span><i style="background:color-mix(in srgb,var(--good) 45%,var(--stone))"></i>Shaman swap</span>
+        <span><i style="background:color-mix(in srgb,var(--ember) 40%,var(--stone))"></i>Ability target</span>
+        <span><i style="background:repeating-linear-gradient(45deg,var(--stone2) 0 3px,var(--ember) 3px 5px)"></i>Spikes, 4 damage</span>
+        <span><i style="background:var(--wall);border:1px solid var(--line)"></i>Wall</span>
+        <span><i style="border:2px solid var(--ember)"></i>Becomes wall next round</span>
+        <span><i style="border:2px solid #6fd3d6"></i>Opens next round</span>
+      </div>
+      <p class="rule">Damage is your Damage minus the target's Armor. Crits are the only luck. Attacking with an ally on the far side of the target adds 25% crit chance.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+const MAP=[
+"##############",
+"#......#.....#",
+"#..^...#..o..#",
+"#......#.....#",
+"#....o.......E",
+"#............#",
+"#..#.....^...#",
+"#..#....o....#",
+"#........##..#",
+"#...........S#",
+"##############"];
+const W=14,H=11;
+const DIRS=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+const CLASSES=[
+ {id:'kael',name:'Kael',race:'Human',sub:'Barbarian',glyph:'B',hp:30,dmg:8,arm:2,spd:11,move:4,range:1,crit:.15,critDmg:1,
+  rule:'<b>Charge:</b> up to 12 tiles in a straight line if it ends next to an enemy.',
+  ability:{name:'Cleave',cd:2,rec:30,desc:'Hit every adjacent enemy.'}},
+ {id:'bram',name:'Bram',race:'Human',sub:'Paladin',glyph:'P',hp:36,dmg:6,arm:4,spd:8,move:3,range:1,crit:.1,critDmg:1,
+  rule:'<b>Hold the line:</b> enemies must stop when they step next to him.',
+  ability:{name:'Holy Smite',cd:2,rec:0,desc:'Hit and knock the target back 2 tiles.'}},
+ {id:'nyra',name:'Nyra',race:'Human',sub:'Rogue',glyph:'R',hp:22,dmg:6,arm:1,spd:15,move:4,range:1,crit:.3,critDmg:1.5,
+  rule:'<b>Light step:</b> ignores spikes and never gives free attacks when leaving an enemy.',
+  ability:{name:'Hamstring',cd:2,rec:0,desc:'Light hit that pushes the target 50 back on the timeline.'}},
+ {id:'ilse',name:'Ilse',race:'Human',sub:'Sorcerer',glyph:'S',hp:18,dmg:7,arm:0,spd:10,move:2,range:5,crit:.1,critDmg:1,
+  rule:'<b>Teleport:</b> instead of walking, appear on any open tile on the map.',
+  ability:{name:'Firestorm',cd:3,rec:40,desc:'6 damage to everyone in a 3 by 3 area, allies too.'}},
+ {id:'wren',name:'Wren',race:'Human',sub:'Hunter',glyph:'H',hp:20,dmg:6,arm:1,spd:12,move:3,range:6,crit:.2,critDmg:1,
+  rule:'<b>Steady aim:</b> +2 damage on attacks made before moving this turn.',
+  ability:{name:'Pinning Shot',cd:2,rec:0,desc:'Ranged hit. The target cannot move on its next turn.'}},
+ {id:'tova',name:'Tova',race:'Human',sub:'Shaman',glyph:'Sh',hp:24,dmg:5,arm:2,spd:9,move:3,range:3,crit:.1,critDmg:1,
+  rule:'<b>Spirit swap:</b> instead of walking, trade places with an ally next to her.',
+  ability:{name:'Chain Heal',cd:3,rec:20,desc:'Heal herself and every ally within 2 tiles for 7.'}}
+];
+const SLOTS=[[3,4],[3,5],[2,3],[1,5]];
+let squad=['kael','bram','nyra','ilse'];
+const EN={
+ ghoul:{name:'Ghoul',glyph:'g',hp:16,dmg:6,arm:0,spd:9,move:4,range:1,crit:.1,critDmg:1,rule:'Melee. Shambles toward the nearest hero.'},
+ imp:{name:'Imp',glyph:'i',hp:10,dmg:5,arm:0,spd:13,move:4,range:4,crit:.1,critDmg:1,rule:'Ranged, 4 tiles. Backs away from melee.'},
+ knight:{name:'Hellknight',glyph:'K',hp:30,dmg:9,arm:3,spd:6,move:3,range:1,crit:.1,critDmg:1,rule:'Slow, armored and hits hard.'}
+};
+const EN_START=[['ghoul',8,1],['ghoul',9,3],['ghoul',11,7],['imp',11,1],['imp',12,5],['knight',11,4]];
+
+const ROUND=80,WAVE=4,SHIFT=6;
+const reduceMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const STEP=reduceMotion?0:90;
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const rand=n=>Math.floor(Math.random()*n);
+const $=id=>document.getElementById(id);
+const tilesEl=$('tiles'),tokensEl=$('tokens'),boardEl=$('board');
+const tileEls=[],tokEls=new Map();
+let S;
+
+function init(){
+  S={grid:MAP.map(r=>r.split('')),units:[],clock:0,cur:null,combat:false,combatStart:0,pressure:0,shift:null,
+     mode:'move',pending:null,hover:null,busy:false,over:null,exitOpen:false,log:[],nextId:0,ui:null,hl:null};
+  squad.forEach((id,i)=>S.units.push(mkUnit({...CLASSES.find(c=>c.id===id),x:SLOTS[i][0],y:SLOTS[i][1]},false)));
+  EN_START.forEach(([k,x,y])=>S.units.push(mkUnit({...EN[k],kind:k,x,y},true)));
+  tokensEl.innerHTML='';tokEls.clear();
+  boardEl.querySelectorAll('.float').forEach(e=>e.remove());
+  log('Your squad enters the rift. The enemies on the far side are asleep.');
+  nextTurn();
+}
+function mkUnit(d,enemy){
+  return {...d,uid:'u'+(S.nextId++),enemy,maxhp:d.hp,alive:true,awake:!enemy,t:enemy?Infinity:1000/d.spd,
+          cd:0,rec:0,moved:false,acted:false,slip:d.sub==='Rogue'};
+}
+
+/* ---------- board helpers ---------- */
+const cell=(x,y)=>S.grid[y][x];
+const inB=(x,y)=>x>=0&&y>=0&&x<W&&y<H;
+function isWall(x,y){if(!inB(x,y))return true;const c=cell(x,y);return c==='#'||c==='o'||(c==='E'&&!S.exitOpen)}
+const unitAt=(x,y)=>S.units.find(u=>u.alive&&u.x===x&&u.y===y);
+const dist=(ax,ay,bx,by)=>Math.max(Math.abs(ax-bx),Math.abs(ay-by));
+const cheb=(a,b)=>dist(a.x,a.y,b.x,b.y);
+function findChar(ch){for(let y=0;y<H;y++)for(let x=0;x<W;x++)if(MAP[y][x]===ch)return [x,y]}
+function los(x0,y0,x1,y1){
+  let dx=Math.abs(x1-x0),dy=-Math.abs(y1-y0),sx=x0<x1?1:-1,sy=y0<y1?1:-1,err=dx+dy,x=x0,y=y0;
+  while(true){
+    const e2=2*err;
+    if(e2>=dy){err+=dy;x+=sx}
+    if(e2<=dx){err+=dx;y+=sy}
+    if(x===x1&&y===y1)return true;
+    if(isWall(x,y))return false;
+  }
+}
+function canStep(u,x,y,dx,dy){
+  const nx=x+dx,ny=y+dy;
+  if(isWall(nx,ny))return false;
+  if(dx&&dy&&(isWall(x+dx,y)||isWall(x,y+dy)))return false;
+  const o=unitAt(nx,ny);
+  if(o&&!(u.enemy&&o.enemy))return false;
+  if(u.enemy&&cell(nx,ny)==='^')return false;
+  return true;
+}
+const nearGuardian=(x,y)=>S.units.some(h=>h.alive&&!h.enemy&&h.sub==='Paladin'&&dist(h.x,h.y,x,y)===1);
+function reach(u){
+  const K=(x,y)=>y*W+x,start=K(u.x,u.y);
+  const D=new Map([[start,0]]),prev=new Map(),q=[[u.x,u.y]];
+  while(q.length){
+    const [x,y]=q.shift(),d=D.get(K(x,y));
+    if(d>=u.move)continue;
+    if(u.enemy&&d>0&&nearGuardian(x,y))continue;
+    for(const [dx,dy] of DIRS){
+      if(!canStep(u,x,y,dx,dy))continue;
+      const k=K(x+dx,y+dy);
+      if(D.has(k))continue;
+      D.set(k,d+1);prev.set(k,K(x,y));q.push([x+dx,y+dy]);
+    }
+  }
+  const out=[];
+  for(const [k,d] of D){
+    if(!d)continue;
+    const x=k%W,y=(k-x)/W;
+    if(unitAt(x,y)||cell(x,y)==='E')continue;
+    const path=[];let c=k;
+    while(c!==start){path.unshift([c%W,(c-c%W)/W]);c=prev.get(c)}
+    out.push({x,y,d,path,kind:'walk'});
+  }
+  return out;
+}
+function moveOptions(u){
+  const opts=reach(u),have=new Set(opts.map(m=>m.y*W+m.x));
+  if(u.sub==='Barbarian'){
+    for(const [dx,dy] of DIRS){
+      let x=u.x,y=u.y;const path=[];
+      for(let i=1;i<=12;i++){
+        if(!canStep(u,x,y,dx,dy))break;
+        x+=dx;y+=dy;
+        if(unitAt(x,y))break;
+        path.push([x,y]);
+        if(have.has(y*W+x))continue;
+        if(S.units.some(e=>e.alive&&e.enemy&&dist(e.x,e.y,x,y)===1)){
+          opts.push({x,y,d:i,path:[...path],kind:'charge'});have.add(y*W+x);
+        }
+      }
+    }
+  }
+  if(u.sub==='Sorcerer'){
+    for(let y=1;y<H-1;y++)for(let x=1;x<W-1;x++){
+      if(have.has(y*W+x)||isWall(x,y)||unitAt(x,y)||cell(x,y)==='E')continue;
+      opts.push({x,y,d:dist(x,y,u.x,u.y),path:[[x,y]],kind:'blink'});
+    }
+  }
+  if(u.sub==='Shaman'){
+    for(const a of S.units)if(a.alive&&!a.enemy&&a!==u&&cheb(a,u)===1)opts.push({x:a.x,y:a.y,d:1,path:[[a.x,a.y]],kind:'swap',ally:a});
+  }
+  return opts;
+}
+const crossesSpikes=(u,m)=>!u.slip&&m.path.some(([x,y])=>cell(x,y)==='^');
+function freeAttackers(u,m){
+  if(u.slip||m.kind==='blink'||m.kind==='swap')return [];
+  return S.units.filter(e=>e.alive&&e.enemy&&e.awake&&e.range===1&&cheb(e,u)===1&&dist(e.x,e.y,m.x,m.y)>1);
+}
+const canHitFrom=(u,x,y,t)=>dist(x,y,t.x,t.y)<=u.range&&(u.range===1||los(x,y,t.x,t.y));
+const canAttack=(u,t)=>t.alive&&t.enemy!==u.enemy&&canHitFrom(u,u.x,u.y,t);
+
+/* ---------- damage ---------- */
+function dmgInfo(a,t,base){
+  base=base??a.dmg;
+  if(a.sub==='Hunter'&&!a.moved&&base===a.dmg)base+=2;
+  const dmg=Math.max(1,base-t.arm);
+  let crit=a.crit,flank=false;
+  if(cheb(a,t)===1){
+    const o=unitAt(t.x+(t.x-a.x),t.y+(t.y-a.y));
+    if(o&&o.enemy===a.enemy){crit+=.25;flank=true}
+  }
+  return {dmg,critDmg:Math.round(dmg*(1+a.critDmg)),crit:Math.min(1,crit),flank};
+}
+function strike(a,t,base){
+  const i=dmgInfo(a,t,base),c=Math.random()<i.crit,n=c?i.critDmg:i.dmg;
+  log(`${a.name} hits ${t.name} for ${n}${c?', a critical':''}${i.flank?' (flanked)':''}.`);
+  hurt(t,n,c);
+}
+function hurt(t,n,crit){
+  t.hp=Math.max(0,t.hp-n);
+  floatText(t,'-'+n,crit?'crit':'');
+  if(t.hp<=0&&t.alive){t.alive=false;log(`${t.name} falls.`)}
+  checkEnd();
+}
+function checkEnd(){
+  if(S.over)return;
+  if(!S.units.some(u=>u.alive&&!u.enemy)){S.over='lose';log('Your squad has fallen.')}
+  else if(S.combat&&!S.units.some(u=>u.alive&&u.enemy)){S.over='win';S.exitOpen=true;log('Room cleared. The rift door opens.')}
+}
+
+/* ---------- turn flow ---------- */
+const order=(a,b)=>a.t-b.t||b.spd-a.spd||(a.enemy-b.enemy);
+function nextTurn(){
+  if(S.over){S.busy=false;render();return}
+  const live=S.units.filter(u=>u.alive&&(!u.enemy||u.awake)).sort(order);
+  const u=live[0];
+  S.clock=u.t;S.cur=u;
+  tickPressure();
+  if(S.over){render();return}
+  u.moved=false;u.acted=false;
+  if(u.cd>0)u.cd--;
+  S.mode='move';S.pending=null;S.busy=false;
+  render();
+  if(u.enemy)enemyTurn(u);
+}
+function endTurn(){
+  const u=S.cur;
+  if(u&&u.alive)u.t+=1000/u.spd+u.rec;
+  if(u)u.rec=0;
+  nextTurn();
+}
+function afterAction(){
+  if(S.over){S.busy=false;render();return}
+  const u=S.cur;
+  if(!u.alive){endTurn();return}
+  if(u.moved&&u.acted){S.busy=true;render();setTimeout(endTurn,reduceMotion?50:350);return}
+  S.busy=false;render();
+}
+function checkWake(){
+  if(S.combat)return;
+  const heroes=S.units.filter(u=>u.alive&&!u.enemy);
+  const seen=S.units.some(e=>e.alive&&e.enemy&&!e.awake&&heroes.some(h=>cheb(e,h)<=5&&los(h.x,h.y,e.x,e.y)));
+  if(seen)wakeAll();
+}
+function wakeAll(){
+  if(S.combat)return;
+  S.combat=true;S.combatStart=S.clock;
+  S.units.forEach(u=>{if(u.enemy&&u.alive&&!u.awake){u.awake=true;u.t=S.clock+1000/u.spd}});
+  log('The room wakes. Enemies join the timeline.');
+}
+
+/* ---------- rift pressure ---------- */
+function tickPressure(){
+  if(!S.combat)return;
+  const p=Math.floor((S.clock-S.combatStart)/ROUND);
+  while(S.pressure<p&&!S.over){S.pressure++;onPressure(S.pressure)}
+}
+function onPressure(p){
+  if(p===2)log('Rift pressure 2. The walls begin to hum.');
+  if(p>=WAVE&&(p-WAVE)%4===0)reinforce(p);
+  if(p>=SHIFT-1&&(p-SHIFT+1)%4===0)planShift(p);
+  if(p>=SHIFT&&(p-SHIFT)%4===0)doShift();
+}
+function freeNear(x,y){
+  for(let r=0;r<5;r++)for(let dy=-r;dy<=r;dy++)for(let dx=-r;dx<=r;dx++){
+    const nx=x+dx,ny=y+dy;
+    if(inB(nx,ny)&&!isWall(nx,ny)&&cell(nx,ny)!=='^'&&cell(nx,ny)!=='E'&&!unitAt(nx,ny))return [nx,ny];
+  }
+  return null;
+}
+function reinforce(p){
+  const sp=findChar('S');
+  const kinds=p>WAVE?['ghoul','imp','ghoul']:['ghoul','ghoul'];
+  kinds.forEach(k=>{
+    const pos=freeNear(sp[0],sp[1]);if(!pos)return;
+    const u=mkUnit({...EN[k],kind:k,x:pos[0],y:pos[1]},true);
+    u.awake=true;u.t=S.clock+1000/u.spd;S.units.push(u);
+  });
+  log(`Rift pressure ${p}. Reinforcements claw out of the rift.`);
+}
+const staticWall=(x,y)=>x===0||y===0||x===W-1||y===H-1||MAP[y][x]==='o';
+function interiorWalls(){
+  const s=new Set();
+  for(let y=1;y<H-1;y++)for(let x=1;x<W-1;x++)if(cell(x,y)==='#')s.add(y*W+x);
+  return s;
+}
+function connected(walls){
+  const blocked=(x,y)=>staticWall(x,y)||walls.has(y*W+x);
+  const ex=findChar('E'),sx=ex[0]-1,sy=ex[1];
+  const seen=new Set([sy*W+sx]),q=[[sx,sy]];
+  while(q.length){
+    const [x,y]=q.shift();
+    for(const [dx,dy] of DIRS.slice(0,4)){
+      const nx=x+dx,ny=y+dy,k=ny*W+nx;
+      if(blocked(nx,ny)||seen.has(k))continue;
+      seen.add(k);q.push([nx,ny]);
+    }
+  }
+  for(let y=1;y<H-1;y++)for(let x=1;x<W-1;x++)if(!blocked(x,y)&&!seen.has(y*W+x))return false;
+  return true;
+}
+function okWallTile(x,y){
+  if(staticWall(x,y))return false;
+  const c=cell(x,y);
+  if(c==='^'||c==='S'||c==='E'||unitAt(x,y))return false;
+  const ex=findChar('E'),sp=findChar('S');
+  return dist(x,y,ex[0],ex[1])>1&&dist(x,y,sp[0],sp[1])>1;
+}
+function planShift(p){
+  const old=interiorWalls();
+  for(let tries=0;tries<300;tries++){
+    const nw=new Set();let segs=0,guard=0;
+    while(segs<3&&guard++<60){
+      const x=1+rand(W-2),y=1+rand(H-2),horiz=Math.random()<.5,len=2+rand(2),tiles=[];
+      let ok=true;
+      for(let i=0;i<len;i++){
+        const tx=x+(horiz?i:0),ty=y+(horiz?0:i);
+        if(tx>=W-1||ty>=H-1||!okWallTile(tx,ty)||nw.has(ty*W+tx)){ok=false;break}
+        tiles.push(ty*W+tx);
+      }
+      if(!ok)continue;
+      tiles.forEach(k=>nw.add(k));segs++;
+    }
+    if(segs<3||!connected(nw))continue;
+    S.shift={add:new Set([...nw].filter(k=>!old.has(k))),remove:new Set([...old].filter(k=>!nw.has(k)))};
+    log(`Rift pressure ${p}. The glowing tiles will shift next round.`);
+    return;
+  }
+}
+function doShift(){
+  const sh=S.shift;if(!sh)return;
+  S.shift=null;
+  sh.remove.forEach(k=>{S.grid[(k-k%W)/W][k%W]='.'});
+  const added=[];
+  sh.add.forEach(k=>{const x=k%W,y=(k-x)/W;if(unitAt(x,y))return;S.grid[y][x]='#';added.push(k)});
+  if(!connected(interiorWalls()))added.forEach(k=>{S.grid[(k-k%W)/W][k%W]='.'});
+  log('The room shifts. Walls grind into new places.');
+  boardEl.classList.remove('shifting');void boardEl.offsetWidth;boardEl.classList.add('shifting');
+}
+
+/* ---------- hero actions ---------- */
+async function doMove(u,m){
+  S.busy=true;S.pending=null;S.hover=null;render();
+  for(const e of freeAttackers(u,m)){
+    log(`${e.name} gets a free attack as ${u.name} leaves.`);
+    strike(e,u,e.dmg);render();await sleep(320);
+    if(!u.alive||S.over)break;
+  }
+  if(u.alive&&!S.over){
+    if(m.kind==='blink'){u.x=m.x;u.y=m.y;render();await sleep(150);log(`${u.name} teleports.`)}
+    else if(m.kind==='swap'){const a=m.ally,ox=u.x,oy=u.y;u.x=a.x;u.y=a.y;a.x=ox;a.y=oy;render();await sleep(150);log(`${u.name} swaps places with ${a.name}.`)}
+    else{for(const [x,y] of m.path){u.x=x;u.y=y;render();await sleep(STEP)}}
+    if(m.kind==='charge')log(`${u.name} charges ${m.d} tiles.`);
+    if(crossesSpikes(u,m)){log(`${u.name} crosses spikes for 4.`);hurt(u,4,false)}
+  }
+  u.moved=true;checkWake();afterAction();
+}
+async function doAttack(u,t){
+  S.busy=true;S.pending=null;
+  if(!t.awake)wakeAll();
+  strike(u,t,u.dmg);u.acted=true;render();
+  await sleep(250);afterAction();
+}
+function abilityTargets(u){
+  if(u.cd>0||u.acted)return [];
+  const adj=S.units.filter(e=>e.alive&&e.enemy&&cheb(e,u)===1).map(e=>({x:e.x,y:e.y}));
+  if(u.sub==='Hunter')return S.units.filter(e=>e.alive&&e.enemy&&canHitFrom(u,u.x,u.y,e)).map(e=>({x:e.x,y:e.y}));
+  if(u.sub==='Shaman')return S.units.some(h=>h.alive&&!h.enemy&&cheb(h,u)<=2&&h.hp<h.maxhp)?[{x:u.x,y:u.y}]:[];
+  if(u.sub!=='Sorcerer')return adj;
+  const out=[];
+  for(let y=1;y<H-1;y++)for(let x=1;x<W-1;x++){
+    if(isWall(x,y))continue;
+    const d=dist(x,y,u.x,u.y);
+    if(d<=5&&(d===0||los(u.x,u.y,x,y)))out.push({x,y});
+  }
+  return out;
+}
+const inArea=(v,x,y)=>Math.abs(v.x-x)<=1&&Math.abs(v.y-y)<=1;
+async function doAbility(u,x,y){
+  S.busy=true;S.pending=null;
+  const a=u.ability,tgt=unitAt(x,y);
+  if(S.units.some(e=>e.enemy&&e.alive&&!e.awake&&(cheb(e,u)<=1||inArea(e,x,y))))wakeAll();
+  log(`${u.name} uses ${a.name}.`);
+  if(u.sub==='Barbarian'){
+    for(const e of S.units.filter(e=>e.alive&&e.enemy&&cheb(e,u)===1))strike(u,e,u.dmg);
+  }else if(u.sub==='Paladin'){
+    strike(u,tgt,u.dmg);render();
+    if(tgt.alive){await sleep(150);await knockback(u,tgt,2)}
+  }else if(u.sub==='Hunter'){
+    strike(u,tgt,u.dmg);
+    if(tgt.alive){tgt.rooted=true;log(`${tgt.name} is pinned in place.`)}
+  }else if(u.sub==='Shaman'){
+    for(const h of S.units.filter(h=>h.alive&&!h.enemy&&cheb(h,u)<=2)){
+      const n=Math.min(7,h.maxhp-h.hp);if(!n)continue;
+      h.hp+=n;floatText(h,'+'+n,'heal');log(`Chain Heal restores ${n} to ${h.name}.`);
+    }
+  }else if(u.sub==='Rogue'){
+    strike(u,tgt,3);
+    if(tgt.alive){tgt.t+=50;log(`${tgt.name} is pushed 50 back on the timeline.`)}
+  }else{
+    for(const v of S.units.filter(v=>v.alive&&inArea(v,x,y))){
+      const n=Math.max(1,6-v.arm);log(`Firestorm burns ${v.name} for ${n}.`);hurt(v,n,false);
+    }
+  }
+  u.cd=a.cd;u.rec+=a.rec;u.acted=true;S.mode='move';
+  checkWake();render();await sleep(250);afterAction();
+}
+async function knockback(a,t,n){
+  const dx=Math.sign(t.x-a.x),dy=Math.sign(t.y-a.y);
+  for(let i=0;i<n;i++){
+    const nx=t.x+dx,ny=t.y+dy;
+    if(isWall(nx,ny)||unitAt(nx,ny)||cell(nx,ny)==='E'||(dx&&dy&&(isWall(t.x+dx,t.y)||isWall(t.x,t.y+dy)))){
+      log(`${t.name} slams into an obstacle for 2.`);hurt(t,2,false);return;
+    }
+    t.x=nx;t.y=ny;render();await sleep(STEP+40);
+    if(cell(nx,ny)==='^'){log(`${t.name} is knocked onto spikes for 4.`);hurt(t,4,false);if(!t.alive)return}
+  }
+}
+
+/* ---------- enemy AI ---------- */
+function heroDistances(){
+  const D=new Array(W*H).fill(Infinity),q=[];
+  S.units.forEach(h=>{if(h.alive&&!h.enemy){D[h.y*W+h.x]=0;q.push([h.x,h.y])}});
+  while(q.length){
+    const [x,y]=q.shift(),d=D[y*W+x];
+    for(const [dx,dy] of DIRS){
+      const nx=x+dx,ny=y+dy;
+      if(isWall(nx,ny)||(dx&&dy&&(isWall(x+dx,y)||isWall(x,y+dy))))continue;
+      const k=ny*W+nx;
+      if(D[k]<=d+1)continue;
+      D[k]=d+1;q.push([nx,ny]);
+    }
+  }
+  return D;
+}
+async function enemyTurn(u){
+  S.busy=true;render();
+  await sleep(reduceMotion?60:380);
+  if(S.over)return;
+  const heroes=()=>S.units.filter(h=>h.alive&&!h.enemy);
+  let targets=heroes().filter(h=>canHitFrom(u,u.x,u.y,h));
+  const ranged=u.range>1;
+  if(u.rooted)log(`${u.name} is pinned and cannot move.`);
+  else if(!targets.length||(ranged&&heroes().some(h=>cheb(h,u)===1))){
+    const D=heroDistances(),opts=reach(u);
+    opts.push({x:u.x,y:u.y,d:0,path:[],kind:'stay'});
+    let best=null,bs=-Infinity;
+    for(const m of opts){
+      let s;
+      if(heroes().some(h=>canHitFrom(u,m.x,m.y,h))){
+        s=1000-m.d;
+        if(ranged)s+=10*Math.min(...heroes().map(h=>dist(h.x,h.y,m.x,m.y)));
+      }else s=-D[m.y*W+m.x]*10-m.d;
+      if(s>bs){bs=s;best=m}
+    }
+    if(best&&best.kind!=='stay')for(const [x,y] of best.path){u.x=x;u.y=y;render();await sleep(STEP)}
+  }
+  targets=heroes().filter(h=>canHitFrom(u,u.x,u.y,h));
+  if(targets.length){
+    targets.sort((a,b)=>(a.hp-dmgInfo(u,a).dmg)-(b.hp-dmgInfo(u,b).dmg));
+    await sleep(reduceMotion?0:160);
+    strike(u,targets[0],u.dmg);render();
+  }
+  u.rooted=false;
+  await sleep(reduceMotion?60:320);
+  if(S.over){S.busy=false;render();return}
+  endTurn();
+}
+
+/* ---------- input ---------- */
+function heroUI(){
+  const u=S.cur;
+  if(squad.length<4||!u||u.enemy||S.busy||S.over)return null;
+  const ui={moves:[],attacks:[],ability:[],area:new Set()};
+  if(S.mode==='ability'){
+    ui.ability=abilityTargets(u);
+    const f=S.pending||S.hover;
+    if(u.sub==='Sorcerer'&&f&&ui.ability.some(t=>t.x===f.x&&t.y===f.y))
+      for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)ui.area.add((f.y+dy)*W+f.x+dx);
+  }else{
+    if(!u.moved)ui.moves=moveOptions(u);
+    if(!u.acted)ui.attacks=S.units.filter(t=>t.enemy&&canAttack(u,t));
+  }
+  return ui;
+}
+const isPending=(x,y)=>S.pending&&S.pending.x===x&&S.pending.y===y;
+function onTile(x,y,mouse){
+  const u=S.cur;
+  if(squad.length<4)return;
+  if(!u||u.enemy||S.busy||S.over)return;
+  const ui=heroUI();
+  if(S.mode==='ability'){
+    if(!ui.ability.some(t=>t.x===x&&t.y===y)){S.pending=null;render();return}
+    if(mouse||isPending(x,y))doAbility(u,x,y);else{S.pending={x,y};render()}
+    return;
+  }
+  const t=unitAt(x,y);
+  if(t&&ui.attacks.includes(t)){
+    if(mouse||isPending(x,y))doAttack(u,t);else{S.pending={x,y};render()}
+    return;
+  }
+  const m=ui.moves.find(m=>m.x===x&&m.y===y);
+  if(m){doMove(u,m);return}
+  S.pending=null;render();
+}
+function toggleAbility(){
+  const u=S.cur;
+  if(squad.length<4||!u||u.enemy||S.busy||S.over)return;
+  if(S.mode==='ability'){S.mode='move'}
+  else if(abilityTargets(u).length){S.mode='ability'}
+  S.pending=null;render();
+}
+function userEndTurn(){
+  const u=S.cur;
+  if(squad.length<4||!u||u.enemy||S.busy||S.over)return;
+  S.busy=true;endTurn();
+}
+
+/* ---------- rendering ---------- */
+function log(msg){S.log.unshift(msg);S.log=S.log.slice(0,40)}
+function floatText(u,txt,cls){
+  const el=document.createElement('div');
+  el.className='float '+cls;el.textContent=txt;
+  el.style.left=(u.x*100/W)+'%';el.style.top=(u.y*100/H)+'%';
+  boardEl.appendChild(el);setTimeout(()=>el.remove(),950);
+}
+function buildTiles(){
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+    const el=document.createElement('div');
+    el.dataset.x=x;el.dataset.y=y;
+    tilesEl.appendChild(el);tileEls.push(el);
+  }
+}
+const TILE_CLASS={'#':'wall','o':'pillar','^':'spike','E':'exit','S':'spawn','.':'floor'};
+function render(){
+  S.ui=heroUI();
+  renderSquad();renderTiles();renderTokens();renderTimeline();renderUnit();renderPressure();renderLog();renderOverlay();
+}
+function renderTiles(){
+  const ui=S.ui,mv=new Map(),ab=new Set();
+  if(ui){ui.moves.forEach(m=>mv.set(m.y*W+m.x,m));ui.ability.forEach(t=>ab.add(t.y*W+t.x))}
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+    const k=y*W+x,c=cell(x,y);
+    let cls='tile '+TILE_CLASS[c];
+    if(c==='E'&&S.exitOpen)cls+=' open';
+    if((x+y)&1&&c!=='#')cls+=' alt';
+    const m=mv.get(k);if(m)cls+=' hl-'+m.kind;
+    if(ab.has(k))cls+=' hl-ab';
+    if(ui&&ui.area.has(k))cls+=' area';
+    if(S.shift){if(S.shift.add.has(k))cls+=' tele-wall';if(S.shift.remove.has(k))cls+=' tele-open'}
+    if(S.hover&&S.hover.x===x&&S.hover.y===y&&ui)cls+=' hover';
+    tileEls[k].className=cls;
+  }
+}
+function renderTokens(){
+  const atk=new Set(S.ui?S.ui.attacks.map(t=>t.uid):[]);
+  for(const u of S.units){
+    let el=tokEls.get(u.uid);
+    if(!u.alive){
+      if(el){el.classList.add('gone');setTimeout(()=>el.remove(),350);tokEls.delete(u.uid)}
+      continue;
+    }
+    if(!el){
+      el=document.createElement('div');
+      el.innerHTML='<div class="disc"></div><div class="hp"><i></i></div><span class="zz">z z</span>';
+      tokensEl.appendChild(el);tokEls.set(u.uid,el);
+    }
+    el.style.left=(u.x*100/W)+'%';el.style.top=(u.y*100/H)+'%';
+    el.querySelector('.disc').textContent=u.glyph;
+    el.querySelector('.hp i').style.width=(100*u.hp/u.maxhp)+'%';
+    el.className='tok '+(u.enemy?'foe foe-'+u.kind:'hero')+(S.cur===u?' active':'')+(u.enemy&&!u.awake?' asleep':'')
+      +(atk.has(u.uid)?' target':'')+(isPending(u.x,u.y)?' pending':'')+(S.hl===u.uid?' hl':'');
+  }
+}
+function forecast(n){
+  const live=S.units.filter(u=>u.alive&&(!u.enemy||u.awake)).map(u=>({u,t:u.t,spd:u.spd,enemy:u.enemy}));
+  const out=[];let first=true;
+  while(out.length<n&&live.length){
+    live.sort(order);
+    const f=live[0];
+    out.push({u:f.u,t:f.t});
+    f.t+=1000/f.u.spd+(first&&f.u===S.cur?f.u.rec:0);
+    first=false;
+  }
+  return out;
+}
+function renderTimeline(){
+  const items=forecast(10);
+  $('timeline').innerHTML='<span class="tl-label">Next</span>'+items.map((it,i)=>
+    `<div class="chip${i===0?' now':''}${it.u.enemy?' foe':''}" data-uid="${it.u.uid}">
+      <span class="cg">${it.u.glyph}</span><span class="cn">${it.u.name}</span>
+      <span class="ct">${i===0?'now':'+'+Math.round(it.t-S.clock)}</span></div>`).join('');
+}
+function renderPressure(){
+  const p=S.pressure,marks={2:'hum',[WAVE]:'wave',[SHIFT]:'shift'};
+  let next='';
+  if(S.combat){
+    const nr=p<WAVE?WAVE:WAVE+4*Math.ceil((p-WAVE+1)/4),ns=p<SHIFT?SHIFT:SHIFT+4*Math.ceil((p-SHIFT+1)/4);
+    next=nr<ns?`Reinforcements at ${nr}`:`Wall shift at ${ns}`;
+  }
+  $('pressure').innerHTML=`<div class="lbl"><span>Rift pressure <b>${S.combat?p:'dormant'}</b></span><span>${S.combat?next:'Rises once the room wakes'}</span></div>
+    <div class="pbar">${Array.from({length:12},(_,i)=>`<span class="${i<Math.min(p,12)?'on':''}${marks[i+1]?' mark':''}" data-m="${marks[i+1]||''}"></span>`).join('')}</div><div class="ticks"></div>`;
+}
+function previewText(){
+  const u=S.cur,ui=S.ui;
+  if(S.over)return '';
+  if(!u)return '';
+  if(u.enemy)return `${u.name} is acting.`;
+  if(!ui)return 'Resolving.';
+  const f=S.pending||S.hover;
+  if(S.mode==='ability'){
+    const a=u.ability;
+    if(!f||!ui.ability.some(t=>t.x===f.x&&t.y===f.y))return `Pick a target for ${a.name}. ${a.desc}`;
+    return abilityPreview(u,f.x,f.y)+(S.pending?' Tap again to confirm.':'');
+  }
+  if(f){
+    const t=unitAt(f.x,f.y);
+    if(t&&ui.attacks.includes(t)){
+      const i=dmgInfo(u,t,u.dmg);
+      return `Attack ${t.name} (${t.hp} HP): ${i.dmg} damage, ${Math.round(i.crit*100)}% chance of a ${i.critDmg} critical${i.flank?', flanking bonus included':''}.${i.dmg>=t.hp?' This kills it.':''}${S.pending?' Tap again to strike.':''}`;
+    }
+    const m=ui.moves.find(m=>m.x===f.x&&m.y===f.y);
+    if(m){
+      let s={walk:`Walk ${m.d} tile${m.d>1?'s':''}.`,charge:`Charge ${m.d} tiles in a straight line.`,blink:'Teleport here. Teleporting never gives free attacks.',swap:`Swap places with ${m.ally&&m.ally.name}.`}[m.kind];
+      const fa=freeAttackers(u,m);
+      if(fa.length)s+=` Careful: ${fa.map(e=>e.name).join(' and ')} will get a free attack.`;
+      if(crossesSpikes(u,m))s+=' Spikes deal 4 damage.';
+      return s;
+    }
+    if(t&&t.enemy)return `${t.name}: ${t.hp}/${t.maxhp} HP, Damage ${t.dmg}, Armor ${t.arm}, Attack Speed ${t.spd}, Move ${t.move}. ${EN[t.kind].rule}`;
+  }
+  if(u.moved&&u.acted)return 'Turn complete.';
+  if(!S.combat)return 'Explore the room. The enemies wake when a hero comes within 5 tiles in sight.';
+  return 'Tap a highlighted tile to move, or a ringed enemy to preview an attack.';
+}
+function abilityPreview(u,x,y){
+  const t=unitAt(x,y);
+  if(u.sub==='Barbarian'){
+    const adj=S.units.filter(e=>e.alive&&e.enemy&&cheb(e,u)===1);
+    return `Cleave hits ${adj.map(e=>`${e.name} for ${dmgInfo(u,e).dmg}`).join(', ')}. Adds 30 recovery, so Kael's next turn comes later.`;
+  }
+  if(u.sub==='Paladin')return `Holy Smite hits ${t.name} for ${dmgInfo(u,t).dmg} and knocks it 2 tiles back. Spikes add 4, an obstacle adds 2.`;
+  if(u.sub==='Hunter')return `Pinning Shot hits ${t.name} for ${dmgInfo(u,t).dmg}. It cannot move on its next turn.`;
+  if(u.sub==='Shaman')return `Chain Heal restores up to 7 HP to ${S.units.filter(h=>h.alive&&!h.enemy&&cheb(h,u)<=2&&h.hp<h.maxhp).map(h=>h.name).join(', ')}. Adds 20 recovery.`;
+  if(u.sub==='Rogue')return `Hamstring hits ${t.name} for ${dmgInfo(u,t,3).dmg} and pushes its next turn 50 later.`;
+  const hit=S.units.filter(v=>v.alive&&inArea(v,x,y));
+  if(!hit.length)return 'Firestorm would hit nothing here. Adds 40 recovery.';
+  const allies=hit.filter(v=>!v.enemy);
+  return `Firestorm hits ${hit.map(v=>`${v.name} for ${Math.max(1,6-v.arm)}`).join(', ')}.${allies.length?` Warning: this burns ${allies.map(v=>v.name).join(' and ')}.`:''} Adds 40 recovery.`;
+}
+function renderUnit(){
+  const u=S.cur;
+  if(!u){$('unit').innerHTML='';return}
+  const rule=u.enemy?EN[u.kind].rule:u.rule;
+  const hero=!u.enemy,canAct=hero&&!S.busy&&!S.over;
+  const abReady=hero&&u.cd===0&&!u.acted&&abilityTargets(u).length>0;
+  const abNote=hero?(u.cd>0?`ready in ${u.cd} turn${u.cd>1?'s':''}`:u.acted?'action used':abilityTargets(u).length?(S.mode==='ability'?'tap to cancel':u.ability.desc):'no target in reach'):'';
+  $('unit').innerHTML=`
+    <div class="uc-head${u.enemy?' foe':''}"><span class="badge">${u.glyph}</span>
+      <div><h2>${u.name}</h2><p>${u.enemy?'Enemy':(u.race+' · '+u.sub)}</p></div></div>
+    <div class="hpline"><span>HP</span><span class="bar"><i style="width:${100*u.hp/u.maxhp}%"></i></span><span>${u.hp}/${u.maxhp}</span></div>
+    <dl class="stats">
+      <div><dt>Damage</dt><dd>${u.dmg}</dd></div><div><dt>Armor</dt><dd>${u.arm}</dd></div><div><dt>Atk speed</dt><dd>${u.spd}</dd></div>
+      <div><dt>Move</dt><dd>${u.move}</dd></div><div><dt>Range</dt><dd>${u.range}</dd></div><div><dt>Crit</dt><dd>${Math.round(u.crit*100)}% · +${Math.round(u.critDmg*100)}%</dd></div>
+    </dl>
+    <p class="rule">${rule}</p>
+    ${hero?`<div class="status"><span class="pill${u.moved?'':' ok'}">Move ${u.moved?'used':'ready'}</span><span class="pill${u.acted?'':' ok'}">Action ${u.acted?'used':'ready'}</span></div>
+    <div class="actions">
+      <button id="btn-ability" class="${S.mode==='ability'?'on':''}" ${canAct&&(abReady||S.mode==='ability')?'':'disabled'}>${u.ability.name}<span class="small">${abNote}</span></button>
+      <button id="btn-end" ${canAct?'':'disabled'}>End turn<span class="small">next turn in ${Math.round(1000/u.spd+u.rec)}</span></button>
+    </div>`:''}
+    <div class="preview" aria-live="polite">${previewText()}</div>`;
+}
+function renderLog(){$('log').innerHTML=S.log.slice(0,12).map(l=>`<p>${l}</p>`).join('')}
+function renderSquad(){
+  $('squad').innerHTML=`<h3><span>Squad · Human classes</span><span>${squad.length}/4 picked. Changing the squad restarts the room.</span></h3>
+  <div class="squad-grid">${CLASSES.map(c=>{const i=squad.indexOf(c.id);
+    return `<button class="pick${i>=0?' sel':''}" data-pick="${c.id}" aria-pressed="${i>=0}"><span class="cg">${c.glyph}</span>
+      <span><b>${c.sub}</b><small>${c.name} · Move ${c.move} · Speed ${c.spd} · Range ${c.range}</small></span>${i>=0?`<span class="slot">${i+1}</span>`:''}</button>`}).join('')}</div>`;
+}
+function togglePick(id){
+  if(S&&S.busy)return;
+  const i=squad.indexOf(id);
+  if(i>=0)squad.splice(i,1);
+  else if(squad.length<4)squad.push(id);
+  else squad[3]=id;
+  if(squad.length===4)init();else render();
+}
+function renderOverlay(){
+  if(squad.length<4){
+    $('overlay').innerHTML=`<div class="overlay"><div class="card"><h2>Pick your squad</h2><p>Choose ${4-squad.length} more hero${4-squad.length>1?'es':''} above to start the fight.</p></div></div>`;
+    return;
+  }
+  if(!S.over){$('overlay').innerHTML='';return}
+  const win=S.over==='win';
+  $('overlay').innerHTML=`<div class="overlay"><div class="card">
+    <h2>${win?'Room cleared':'Squad defeated'}</h2>
+    <p>${win?`The rift door is open. ${S.units.filter(u=>!u.enemy&&u.alive).length} of 4 heroes standing, rift pressure ${S.pressure}.`:`The rift claimed your squad at rift pressure ${S.pressure}.`}</p>
+    <button id="btn-restart">Play again</button></div></div>`;
+}
+
+/* ---------- events ---------- */
+buildTiles();
+tilesEl.addEventListener('click',e=>{
+  const t=e.target.closest('[data-x]');if(!t)return;
+  onTile(+t.dataset.x,+t.dataset.y,e.pointerType==='mouse');
+});
+tilesEl.addEventListener('mouseover',e=>{
+  const t=e.target.closest('[data-x]');if(!t)return;
+  const x=+t.dataset.x,y=+t.dataset.y;
+  if(!S.hover||S.hover.x!==x||S.hover.y!==y){S.hover={x,y};render()}
+});
+tilesEl.addEventListener('mouseleave',()=>{S.hover=null;render()});
+document.addEventListener('click',e=>{
+  const pk=e.target.closest('[data-pick]');
+  if(pk)togglePick(pk.dataset.pick);
+  else if(e.target.closest('#btn-ability'))toggleAbility();
+  else if(e.target.closest('#btn-end'))userEndTurn();
+  else if(e.target.closest('#btn-restart'))init();
+});
+$('timeline').addEventListener('mouseover',e=>{
+  const c=e.target.closest('.chip');const id=c?c.dataset.uid:null;
+  if(S.hl!==id){S.hl=id;renderTokens()}
+});
+$('timeline').addEventListener('mouseleave',()=>{S.hl=null;renderTokens()});
+document.addEventListener('keydown',e=>{
+  if(e.target.closest('input,textarea'))return;
+  const k=e.key.toLowerCase();
+  if(k==='a')toggleAbility();
+  else if(k==='e')userEndTurn();
+  else if(k==='escape'){if(S.mode==='ability')S.mode='move';S.pending=null;render()}
+});
+init();
+</script>
