@@ -17,7 +17,8 @@ Open `prototype/index.html` in a browser. It has no build step and no dependenci
 
 - Pick 4 of the 6 human classes: Barbarian, Paladin, Rogue, Sorcerer, Hunter and Shaman.
 - Turn order follows Attack Speed, and the timeline shows the next 10 turns.
-- Each class has its own movement rule, such as the Barbarian's 12-tile charge or the Sorcerer's teleport.
+- Each class has its own movement rule, such as the Barbarian's 12-tile charge or the Shaman's swap.
+- Each hero has 3 abilities and an ultimate. The ultimate charges as the hero fights.
 - Heroes can't move through anyone. Enemies can pass through each other but not through heroes.
 - Damage is shown before you attack. Crits are the only luck.
 - Once the room wakes, rift pressure brings reinforcements and shifts the walls, with a warning one round ahead.
