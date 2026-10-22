@@ -1,0 +1,6 @@
+﻿<Solution>
+  <Project Path="ShardsOfEternity.Core.csproj" />
+  <Project Path="ShardsOfEternity.Game.csproj" />
+  <Project Path="ShardsOfEternity.Editor.csproj" />
+  <Project Path="ShardsOfEternity.Tests.EditMode.csproj" />
+</Solution>
