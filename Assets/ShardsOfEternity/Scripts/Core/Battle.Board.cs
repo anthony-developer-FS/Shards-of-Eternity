@@ -110,7 +110,7 @@ namespace ShardsOfEternity.Core
                 int d = dist[k];
                 if (d == 0) continue;
                 int x = k % W, y = k / W;
-                if (UnitAt(x, y) != null || Map[x, y] == TileType.Exit) continue;
+                if (UnitAt(x, y) != null || (Map[x, y] == TileType.Exit && !ExitOpen)) continue;
                 var path = new List<Point>();
                 for (int c = k; c != start; c = prev[c]) path.Insert(0, new Point(c % W, c / W));
                 output.Add(new MoveOption { Target = new Point(x, y), Distance = d, Path = path, Kind = MoveKind.Walk });

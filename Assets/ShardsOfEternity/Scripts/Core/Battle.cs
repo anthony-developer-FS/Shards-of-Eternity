@@ -7,8 +7,25 @@ namespace ShardsOfEternity.Core
     public enum BattleOutcome
     {
         None,
+        /// <summary>The final floor's boss and its room are cleared: the run is won.</summary>
         Victory,
         Defeat,
+        /// <summary>A hero walked through the open exit. Load the next floor.</summary>
+        FloorComplete,
+    }
+
+    /// <summary>
+    /// Turn budget rules. Classic: one move and one action per turn. Action shards: a pool of shards per turn,
+    /// where moving, attacking and using an ability each cost one, in any mix (move twice, attack twice...).
+    /// </summary>
+    public sealed class TurnRules
+    {
+        public bool UseActionShards;
+        public int ShardsPerTurn = 2;
+        /// <summary>Most shards a hero can hold. Above <see cref="ShardsPerTurn"/>, unspent shards bank for later turns.</summary>
+        public int ShardCap = 2;
+
+        public static TurnRules Classic => new TurnRules();
     }
 
     /// <summary>Walls that will appear and disappear at the next wall shift.</summary>
@@ -27,8 +44,6 @@ namespace ShardsOfEternity.Core
     {
         /// <summary>Timeline points per round of rift pressure.</summary>
         public const int RoundLength = 80;
-        /// <summary>Pressure level of the first reinforcement wave. Waves repeat every 4 levels.</summary>
-        public const int FirstWave = 4;
         /// <summary>Pressure level of the first wall shift. Shifts repeat every 4 levels, telegraphed one level ahead.</summary>
         public const int FirstShift = 6;
 
@@ -50,6 +65,11 @@ namespace ShardsOfEternity.Core
         public int Pressure { get; private set; }
         public WallShift PendingShift { get; private set; }
         public bool ExitOpen { get; private set; }
+        /// <summary>Every enemy is dead. On a floor before the last one, the squad now walks to the exit.</summary>
+        public bool FloorCleared { get; private set; }
+        /// <summary>Reinforcement waves called so far on this floor.</summary>
+        public int WavesCalled { get; private set; }
+        public TurnRules Rules { get; set; } = TurnRules.Classic;
         public BattleOutcome Outcome { get; private set; }
         public bool IsOver => Outcome != BattleOutcome.None;
         /// <summary>Newest first, like the prototype's log.</summary>
@@ -86,10 +106,27 @@ namespace ShardsOfEternity.Core
             return u;
         }
 
+        /// <summary>
+        /// Brings heroes' health, deaths and ultimate charge over from the previous floor. Cooldowns and shards reset.
+        /// </summary>
+        public void CarryOver(IEnumerable<Unit> previousHeroes)
+        {
+            foreach (var old in previousHeroes)
+            {
+                var hero = Units.FirstOrDefault(u => u.IsHero && u.Def == old.Def);
+                if (hero == null) continue;
+                hero.Hp = old.Hp;
+                hero.Alive = old.Alive;
+                hero.Ultimate = old.Ultimate;
+            }
+        }
+
         /// <summary>Begins the battle and starts the first turn.</summary>
         public void Start()
         {
-            Say("Your squad enters the rift. The enemies on the far side are asleep.");
+            Say(Layout.HasBoss
+                ? "The rift's heart. Something large is waiting on the far side."
+                : "Your squad enters the rift. The enemies on the far side are asleep.");
             NextTurn();
         }
 
@@ -152,6 +189,7 @@ namespace ShardsOfEternity.Core
                 for (int i = 0; i < u.Cooldowns.Length; i++) u.Cooldowns[i] = Math.Max(0, u.Cooldowns[i] - 1);
                 u.ArmorBuff = 0;
                 if (u.IsHero && InCombat) ChargeUltimate(u, 20);
+                if (u.IsHero && Rules.UseActionShards) u.Shards = Math.Min(Rules.ShardCap, u.Shards + Rules.ShardsPerTurn);
 
                 if (u.Poison > 0)
                 {
@@ -180,8 +218,26 @@ namespace ShardsOfEternity.Core
             NextTurn();
         }
 
-        /// <summary>True when the current hero has both moved and acted, so the turn should end on its own.</summary>
-        public bool CurrentTurnSpent => Current != null && (!Current.Alive || (Current.IsHero && Current.Moved && Current.Acted));
+        /// <summary>True when the current hero has nothing left to spend, so the turn should end on its own.</summary>
+        public bool CurrentTurnSpent => Current != null && (!Current.Alive || (Current.IsHero && !CanMove(Current) && !CanAct(Current)));
+
+        /// <summary>Whether the hero still has a move this turn (a shard, or the classic move).</summary>
+        public bool CanMove(Unit u) => Rules.UseActionShards ? u.Shards > 0 : !u.Moved;
+
+        /// <summary>Whether the hero can still attack or use an ability this turn.</summary>
+        public bool CanAct(Unit u) => Rules.UseActionShards ? u.Shards > 0 : !u.Acted;
+
+        void SpendMove(Unit u)
+        {
+            u.Moved = true;
+            if (Rules.UseActionShards) u.Shards = Math.Max(0, u.Shards - 1);
+        }
+
+        void SpendAction(Unit u)
+        {
+            u.Acted = true;
+            if (Rules.UseActionShards) u.Shards = Math.Max(0, u.Shards - 1);
+        }
 
         public struct TimelineEntry
         {
@@ -245,11 +301,21 @@ namespace ShardsOfEternity.Core
                 Outcome = BattleOutcome.Defeat;
                 Say("Your squad has fallen.");
             }
-            else if (InCombat && !Enemies.Any())
+            else if (InCombat && !FloorCleared && !Enemies.Any())
             {
-                Outcome = BattleOutcome.Victory;
+                FloorCleared = true;
                 ExitOpen = true;
-                Say("Room cleared. The rift door opens.");
+                PendingShift = null;
+                if (Layout.IsFinalFloor)
+                {
+                    Outcome = BattleOutcome.Victory;
+                    Say(Layout.HasBoss ? "The rift lord falls. The rift is sealed." : "Room cleared. The rift door opens.");
+                }
+                else
+                {
+                    Say("Room cleared. The rift door opens. Walk a hero through it to go deeper.");
+                    Emit(new BattleEvent { Type = BattleEventType.FloorCleared });
+                }
             }
             if (IsOver) Emit(new BattleEvent { Type = BattleEventType.BattleOver });
         }
@@ -258,7 +324,7 @@ namespace ShardsOfEternity.Core
 
         void TickPressure()
         {
-            if (!InCombat) return;
+            if (!InCombat || FloorCleared) return;
             int p = (int)Math.Floor((Clock - combatStart) / RoundLength);
             while (Pressure < p && !IsOver)
             {
@@ -270,7 +336,6 @@ namespace ShardsOfEternity.Core
         void OnPressure(int p)
         {
             if (p == 2) Say("Rift pressure 2. The walls begin to hum.");
-            if (p >= FirstWave && (p - FirstWave) % 4 == 0) Reinforce(p);
             if (p >= FirstShift - 1 && (p - FirstShift + 1) % 4 == 0) PlanShift(p);
             if (p >= FirstShift && (p - FirstShift) % 4 == 0) DoShift();
         }
@@ -278,12 +343,15 @@ namespace ShardsOfEternity.Core
         /// <summary>A short description of the next rift event, for the HUD.</summary>
         public string NextPressureEvent()
         {
+            if (FloorCleared) return "The rift is quiet";
             if (!InCombat) return "Rises once the room wakes";
             int p = Pressure;
-            int nextWave = p < FirstWave ? FirstWave : FirstWave + 4 * (int)Math.Ceiling((p - FirstWave + 1) / 4.0);
             int nextShift = p < FirstShift ? FirstShift : FirstShift + 4 * (int)Math.Ceiling((p - FirstShift + 1) / 4.0);
-            return nextWave < nextShift ? $"Reinforcements at {nextWave}" : $"Wall shift at {nextShift}";
+            return $"Wall shift at {nextShift}";
         }
+
+        /// <summary>True while reinforcements can arrive: the room is awake and not yet cleared.</summary>
+        public bool ReinforcementsActive => InCombat && !FloorCleared && !IsOver;
 
         Point? FreeNear(Point c)
         {
@@ -299,11 +367,17 @@ namespace ShardsOfEternity.Core
             return null;
         }
 
-        void Reinforce(int p)
+        /// <summary>
+        /// Sends a reinforcement wave out of the rift spawn. The front end calls this on a real-time countdown
+        /// (every 2 minutes of unpaused play by default), between turns.
+        /// </summary>
+        public void CallReinforcements()
         {
+            if (!ReinforcementsActive) return;
             var spawn = Map.Find(TileType.Spawn);
             if (spawn == null) return;
-            var kinds = p > FirstWave ? Layout.Theme.LaterWaves : Layout.Theme.FirstWave;
+            WavesCalled++;
+            var kinds = WavesCalled > 1 ? Layout.Theme.LaterWaves : Layout.Theme.FirstWave;
             foreach (var kind in kinds)
             {
                 var pos = FreeNear(spawn.Value);
@@ -313,7 +387,7 @@ namespace ShardsOfEternity.Core
                 u.NextTurnAt = Clock + u.TurnInterval;
                 Emit(new BattleEvent { Type = BattleEventType.Spawned, Unit = u });
             }
-            Say($"Rift pressure {p}. Reinforcements claw out of the rift.");
+            Say("Reinforcements claw out of the rift.");
         }
 
         bool StaticWall(int x, int y) => Map.IsBorder(x, y) || baseMap[x, y] == TileType.Pillar;

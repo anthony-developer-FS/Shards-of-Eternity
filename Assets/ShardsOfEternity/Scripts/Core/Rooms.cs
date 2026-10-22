@@ -63,6 +63,12 @@ namespace ShardsOfEternity.Core
         public List<EnemySpawn> Enemies = new List<EnemySpawn>();
         /// <summary>The seed the room was generated from, or -1 for a handmade room.</summary>
         public int Seed = -1;
+        /// <summary>
+        /// Clearing the last floor wins the run. On earlier floors, clearing opens the exit and the squad walks
+        /// through it to continue. A standalone room counts as the last floor.
+        /// </summary>
+        public bool IsFinalFloor = true;
+        public bool HasBoss => Enemies.Any(e => Roster.Enemy(e.Kind).IsBoss);
 
         /// <summary>The handmade room from the browser prototype.</summary>
         public static RoomLayout Prototype() => new RoomLayout
@@ -100,7 +106,8 @@ namespace ShardsOfEternity.Core
     /// </summary>
     public static class RoomGenerator
     {
-        public static RoomLayout Generate(int seed, Theme theme = null)
+        /// <param name="bossFloor">Put the Rift Lord in the room, with a smaller escort.</param>
+        public static RoomLayout Generate(int seed, Theme theme = null, bool bossFloor = false)
         {
             var rng = new Random(seed);
             theme = theme ?? Theme.All[rng.Next(Theme.All.Length)];
@@ -161,7 +168,14 @@ namespace ShardsOfEternity.Core
                     var p = new Point(x, y);
                     if (Free(p) && layout.HeroSlots.All(h => Point.Distance(h, p) > 5)) candidates.Add(p);
                 }
-            int enemyCount = 5 + rng.Next(3), knights = 0;
+            int enemyCount = bossFloor ? 4 + rng.Next(2) : 5 + rng.Next(3), knights = 0;
+            if (bossFloor && candidates.Count > 0)
+            {
+                // The boss waits at the far east of the room.
+                var lair = candidates.OrderByDescending(p => p.X).ThenBy(p => Math.Abs(p.Y - H / 2)).First();
+                candidates.Remove(lair);
+                layout.Enemies.Add(new EnemySpawn(EnemyKind.RiftLord, lair));
+            }
             while (layout.Enemies.Count < enemyCount && candidates.Count > 0)
             {
                 var p = candidates[rng.Next(candidates.Count)];

@@ -206,6 +206,7 @@ namespace ShardsOfEternity.Game
                 {
                     case EnemyKind.Ghoul: shape = PrimitiveType.Cube; scale = new Vector3(0.55f, 0.7f, 0.55f); break;
                     case EnemyKind.Imp: shape = PrimitiveType.Sphere; scale = new Vector3(0.55f, 0.55f, 0.55f); break;
+                    case EnemyKind.RiftLord: shape = PrimitiveType.Capsule; scale = new Vector3(0.95f, 0.85f, 0.95f); break;
                     default: shape = PrimitiveType.Capsule; scale = new Vector3(0.75f, 0.6f, 0.75f); break;
                 }
             }

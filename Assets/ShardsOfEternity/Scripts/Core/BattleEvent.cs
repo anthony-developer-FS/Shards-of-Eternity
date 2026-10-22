@@ -24,6 +24,8 @@ namespace ShardsOfEternity.Core
         RoomWoke,
         /// <summary>A wall shift was telegraphed; see <see cref="Battle.PendingShift"/>.</summary>
         ShiftPlanned,
+        /// <summary>Every enemy on a floor before the last is dead and the exit is open.</summary>
+        FloorCleared,
         /// <summary>The walls moved. Rebuild the board.</summary>
         Shifted,
         BattleOver,

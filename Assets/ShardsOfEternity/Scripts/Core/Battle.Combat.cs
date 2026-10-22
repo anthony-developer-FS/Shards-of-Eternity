@@ -119,7 +119,7 @@ namespace ShardsOfEternity.Core
         /// <summary>Moves the current hero to <paramref name="target"/> if it is one of its move options.</summary>
         public bool TryMove(Point target)
         {
-            if (!HeroCanCommand || Current.Moved) return false;
+            if (!HeroCanCommand || !CanMove(Current)) return false;
             var m = MoveOptions(Current).FirstOrDefault(o => o.Target == target);
             if (m == null) return false;
             DoMove(Current, m);
@@ -158,19 +158,26 @@ namespace ShardsOfEternity.Core
                     Hurt(u, SpikeDamage, false);
                 }
             }
-            u.Moved = true;
+            SpendMove(u);
             CheckWake();
+            if (u.Alive && ExitOpen && !IsOver && Map[u.X, u.Y] == TileType.Exit)
+            {
+                Outcome = BattleOutcome.FloorComplete;
+                Say($"{u.Name} leads the squad through the rift door.");
+                Emit(new BattleEvent { Type = BattleEventType.BattleOver });
+            }
         }
 
         public List<Unit> AttackTargets(Unit u) =>
-            u.Acted ? new List<Unit>() : Units.Where(t => t.IsEnemy != u.IsEnemy && CanAttack(u, t)).ToList();
+            !CanAct(u) ? new List<Unit>() : Units.Where(t => t.IsEnemy != u.IsEnemy && CanAttack(u, t)).ToList();
 
         public bool TryAttack(Unit target)
         {
-            if (!HeroCanCommand || Current.Acted || target == null || !CanAttack(Current, target)) return false;
+            if (!HeroCanCommand || !CanAct(Current) || target == null || !CanAttack(Current, target)) return false;
+            var u = Current;
             if (!target.Awake) WakeAll();
-            Strike(Current, target, Current.Damage);
-            Current.Acted = true;
+            Strike(u, target, u.Damage);
+            SpendAction(u);
             return true;
         }
 
@@ -184,7 +191,7 @@ namespace ShardsOfEternity.Core
         {
             var a = u.Abilities[i];
             var output = new List<Point>();
-            if (u.Acted || !AbilityReady(u, i)) return output;
+            if (!CanAct(u) || !AbilityReady(u, i)) return output;
             bool Need(Unit v) => a.Need == null || a.Need(this, u, v);
             switch (a.Target)
             {
@@ -236,7 +243,7 @@ namespace ShardsOfEternity.Core
             if (a.IsUltimate) u.Ultimate = 0;
             else u.Cooldowns[i] = a.Cooldown;
             u.Recovery += a.Recovery;
-            u.Acted = true;
+            SpendAction(u);
             CheckWake();
             return true;
         }
