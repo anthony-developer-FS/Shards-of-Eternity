@@ -85,6 +85,7 @@ h1{font-family:var(--display);font-weight:400;font-size:clamp(26px,4vw,38px);lin
 .tok.asleep .disc{opacity:.6}
 .tok .zz{position:absolute;top:2%;right:8%;font-size:1.6cqw;color:var(--muted);display:none;font-style:italic}
 .tok.asleep .zz{display:block}
+.tok .st{position:absolute;top:0;left:4%;font-family:var(--mono);font-size:1.25cqw;font-weight:700;color:var(--gold);text-shadow:0 1px 2px #000;white-space:nowrap}
 .tok .hp{position:absolute;bottom:5%;left:18%;right:18%;height:.6cqw;min-height:3px;background:#000a;border-radius:2px;overflow:hidden}
 .tok .hp i{display:block;height:100%;background:var(--good)}
 .tok.foe .hp i{background:var(--ember)}
@@ -125,6 +126,10 @@ button:hover:not(:disabled){border-color:var(--gold)}
 button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 button:disabled{opacity:.45;cursor:not-allowed}
 button.on{background:color-mix(in srgb,var(--ember) 30%,var(--panel2));border-color:var(--ember)}
+button.ab{text-align:left;position:relative;padding-right:26px}
+button.ab .key{position:absolute;top:8px;right:9px;font-family:var(--mono);font-size:11px;color:var(--muted);font-weight:400}
+button.ult{border-color:color-mix(in srgb,var(--gold) 55%,var(--line))}
+button.end{grid-column:1/-1}
 button .small{display:block;font-weight:400;font-size:11.5px;color:var(--muted)}
 .preview{margin-top:12px;padding:10px;border-radius:8px;background:var(--bg);font-size:13.5px;min-height:56px}
 .log{font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:4px;max-height:180px;overflow:auto}
@@ -185,7 +190,8 @@ button .small{display:block;font-weight:400;font-size:11.5px;color:var(--muted)}
         <li>Nobody can move through a hero or end on an occupied tile. Enemies can pass through each other.</li>
         <li>Leaving an enemy's side gives it a free attack.</li>
         <li>Rift pressure rises each round once the room wakes. At 4 reinforcements arrive. At 6 the walls shift, and glowing tiles show where one round ahead.</li>
-        <li>Keys: <span class="kbd">A</span> ability, <span class="kbd">E</span> end turn, <span class="kbd">Esc</span> cancel.</li>
+        <li>Each hero has 3 abilities and an ultimate. An ability uses the turn's action. The ultimate charges as the hero fights.</li>
+        <li>Keys: <span class="kbd">1</span> to <span class="kbd">4</span> abilities, <span class="kbd">E</span> end turn, <span class="kbd">Esc</span> cancel.</li>
       </ul>
     </div>
     <div>
@@ -193,7 +199,6 @@ button .small{display:block;font-weight:400;font-size:11.5px;color:var(--muted)}
       <div class="legend">
         <span><i style="background:color-mix(in srgb,var(--move) 45%,var(--stone))"></i>Walk</span>
         <span><i style="background:color-mix(in srgb,var(--charge) 45%,var(--stone))"></i>Barbarian charge</span>
-        <span><i style="background:color-mix(in srgb,var(--rift) 45%,var(--stone))"></i>Sorcerer teleport</span>
         <span><i style="background:color-mix(in srgb,var(--good) 45%,var(--stone))"></i>Shaman swap</span>
         <span><i style="background:color-mix(in srgb,var(--ember) 40%,var(--stone))"></i>Ability target</span>
         <span><i style="background:repeating-linear-gradient(45deg,var(--stone2) 0 3px,var(--ember) 3px 5px)"></i>Spikes, 4 damage</span>
@@ -223,23 +228,17 @@ const W=14,H=11;
 const DIRS=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
 const CLASSES=[
  {id:'kael',name:'Kael',race:'Human',sub:'Barbarian',glyph:'B',hp:30,dmg:8,arm:2,spd:11,move:4,range:1,crit:.15,critDmg:1,
-  rule:'<b>Charge:</b> up to 12 tiles in a straight line if it ends next to an enemy.',
-  ability:{name:'Cleave',cd:2,rec:30,desc:'Hit every adjacent enemy.'}},
+  rule:'<b>Charge:</b> up to 12 tiles in a straight line if it ends next to an enemy.'},
  {id:'bram',name:'Bram',race:'Human',sub:'Paladin',glyph:'P',hp:36,dmg:6,arm:4,spd:8,move:3,range:1,crit:.1,critDmg:1,
-  rule:'<b>Hold the line:</b> enemies must stop when they step next to him.',
-  ability:{name:'Holy Smite',cd:2,rec:0,desc:'Hit and knock the target back 2 tiles.'}},
+  rule:'<b>Hold the line:</b> enemies must stop when they step next to him.'},
  {id:'nyra',name:'Nyra',race:'Human',sub:'Rogue',glyph:'R',hp:22,dmg:6,arm:1,spd:15,move:4,range:1,crit:.3,critDmg:1.5,
-  rule:'<b>Light step:</b> ignores spikes and never gives free attacks when leaving an enemy.',
-  ability:{name:'Hamstring',cd:2,rec:0,desc:'Light hit that pushes the target 50 back on the timeline.'}},
- {id:'ilse',name:'Ilse',race:'Human',sub:'Sorcerer',glyph:'S',hp:18,dmg:7,arm:0,spd:10,move:2,range:5,crit:.1,critDmg:1,
-  rule:'<b>Teleport:</b> instead of walking, appear on any open tile on the map.',
-  ability:{name:'Firestorm',cd:3,rec:40,desc:'6 damage to everyone in a 3 by 3 area, allies too.'}},
+  rule:'<b>Light step:</b> ignores spikes and never gives free attacks when leaving an enemy.'},
+ {id:'ilse',name:'Ilse',race:'Human',sub:'Sorcerer',glyph:'S',hp:18,dmg:7,arm:0,spd:10,move:3,range:5,crit:.1,critDmg:1,
+  rule:'<b>Levitate:</b> floats over spikes. Teleport is one of her abilities.'},
  {id:'wren',name:'Wren',race:'Human',sub:'Hunter',glyph:'H',hp:20,dmg:6,arm:1,spd:12,move:3,range:6,crit:.2,critDmg:1,
-  rule:'<b>Steady aim:</b> +2 damage on attacks made before moving this turn.',
-  ability:{name:'Pinning Shot',cd:2,rec:0,desc:'Ranged hit. The target cannot move on its next turn.'}},
+  rule:'<b>Steady aim:</b> +2 damage on attacks made before moving this turn.'},
  {id:'tova',name:'Tova',race:'Human',sub:'Shaman',glyph:'Sh',hp:24,dmg:5,arm:2,spd:9,move:3,range:3,crit:.1,critDmg:1,
-  rule:'<b>Spirit swap:</b> instead of walking, trade places with an ally next to her.',
-  ability:{name:'Chain Heal',cd:3,rec:20,desc:'Heal herself and every ally within 2 tiles for 7.'}}
+  rule:'<b>Spirit swap:</b> instead of walking, trade places with an ally next to her.'}
 ];
 const SLOTS=[[3,4],[3,5],[2,3],[1,5]];
 let squad=['kael','bram','nyra','ilse'];
@@ -272,7 +271,7 @@ function init(){
 }
 function mkUnit(d,enemy){
   return {...d,uid:'u'+(S.nextId++),enemy,maxhp:d.hp,alive:true,awake:!enemy,t:enemy?Infinity:1000/d.spd,
-          cd:0,rec:0,moved:false,acted:false,slip:d.sub==='Rogue'};
+          cds:[0,0,0,0],ult:0,abilities:enemy?null:ABIL[d.id],rec:0,moved:false,acted:false,slip:d.sub==='Rogue',levitate:d.sub==='Sorcerer'};
 }
 
 /* ---------- board helpers ---------- */
@@ -345,18 +344,12 @@ function moveOptions(u){
       }
     }
   }
-  if(u.sub==='Sorcerer'){
-    for(let y=1;y<H-1;y++)for(let x=1;x<W-1;x++){
-      if(have.has(y*W+x)||isWall(x,y)||unitAt(x,y)||cell(x,y)==='E')continue;
-      opts.push({x,y,d:dist(x,y,u.x,u.y),path:[[x,y]],kind:'blink'});
-    }
-  }
   if(u.sub==='Shaman'){
     for(const a of S.units)if(a.alive&&!a.enemy&&a!==u&&cheb(a,u)===1)opts.push({x:a.x,y:a.y,d:1,path:[[a.x,a.y]],kind:'swap',ally:a});
   }
   return opts;
 }
-const crossesSpikes=(u,m)=>!u.slip&&m.path.some(([x,y])=>cell(x,y)==='^');
+const crossesSpikes=(u,m)=>!u.slip&&!u.levitate&&m.path.some(([x,y])=>cell(x,y)==='^');
 function freeAttackers(u,m){
   if(u.slip||m.kind==='blink'||m.kind==='swap')return [];
   return S.units.filter(e=>e.alive&&e.enemy&&e.awake&&e.range===1&&cheb(e,u)===1&&dist(e.x,e.y,m.x,m.y)>1);
@@ -368,7 +361,7 @@ const canAttack=(u,t)=>t.alive&&t.enemy!==u.enemy&&canHitFrom(u,u.x,u.y,t);
 function dmgInfo(a,t,base){
   base=base??a.dmg;
   if(a.sub==='Hunter'&&!a.moved&&base===a.dmg)base+=2;
-  const dmg=Math.max(1,base-t.arm);
+  const dmg=Math.max(1,base+markBonus(t)-armorOf(t));
   let crit=a.crit,flank=false;
   if(cheb(a,t)===1){
     const o=unitAt(t.x+(t.x-a.x),t.y+(t.y-a.y));
@@ -379,10 +372,12 @@ function dmgInfo(a,t,base){
 function strike(a,t,base){
   const i=dmgInfo(a,t,base),c=Math.random()<i.crit,n=c?i.critDmg:i.dmg;
   log(`${a.name} hits ${t.name} for ${n}${c?', a critical':''}${i.flank?' (flanked)':''}.`);
+  if(!a.enemy)a.ult=Math.min(100,a.ult+10);
   hurt(t,n,c);
 }
 function hurt(t,n,crit){
   t.hp=Math.max(0,t.hp-n);
+  if(!t.enemy)t.ult=Math.min(100,t.ult+5);
   floatText(t,'-'+n,crit?'crit':'');
   if(t.hp<=0&&t.alive){t.alive=false;log(`${t.name} falls.`)}
   checkEnd();
@@ -403,7 +398,14 @@ function nextTurn(){
   tickPressure();
   if(S.over){render();return}
   u.moved=false;u.acted=false;
-  if(u.cd>0)u.cd--;
+  u.cds=u.cds.map(c=>Math.max(0,c-1));
+  u.armBuff=0;
+  if(!u.enemy&&S.combat)u.ult=Math.min(100,u.ult+20);
+  if(u.poison>0){
+    u.poison--;log(`Poison eats at ${u.name} for 3.`);hurt(u,3,false);
+    if(S.over){render();return}
+    if(!u.alive){render();nextTurn();return}
+  }
   S.mode='move';S.pending=null;S.busy=false;
   render();
   if(u.enemy)enemyTurn(u);
@@ -411,7 +413,7 @@ function nextTurn(){
 function endTurn(){
   const u=S.cur;
   if(u&&u.alive)u.t+=1000/u.spd+u.rec;
-  if(u)u.rec=0;
+  if(u){u.rec=0;if(u.marked>0)u.marked--}
   nextTurn();
 }
 function afterAction(){
@@ -546,60 +548,199 @@ async function doAttack(u,t){
   strike(u,t,u.dmg);u.acted=true;render();
   await sleep(250);afterAction();
 }
-function abilityTargets(u){
-  if(u.cd>0||u.acted)return [];
-  const adj=S.units.filter(e=>e.alive&&e.enemy&&cheb(e,u)===1).map(e=>({x:e.x,y:e.y}));
-  if(u.sub==='Hunter')return S.units.filter(e=>e.alive&&e.enemy&&canHitFrom(u,u.x,u.y,e)).map(e=>({x:e.x,y:e.y}));
-  if(u.sub==='Shaman')return S.units.some(h=>h.alive&&!h.enemy&&cheb(h,u)<=2&&h.hp<h.maxhp)?[{x:u.x,y:u.y}]:[];
-  if(u.sub!=='Sorcerer')return adj;
+/* ---------- abilities ---------- */
+const P=e=>({x:e.x,y:e.y});
+const armorOf=t=>t.arm+(t.armBuff||0);
+const markBonus=t=>t.marked>0?3:0;
+const foesNear=(x,y,r)=>S.units.filter(e=>e.alive&&e.enemy&&dist(e.x,e.y,x,y)<=r);
+const friendsNear=(x,y,r)=>S.units.filter(h=>h.alive&&!h.enemy&&dist(h.x,h.y,x,y)<=r);
+const sightFoes=u=>S.units.filter(e=>e.alive&&e.enemy&&e.awake&&cheb(e,u)<=8&&los(u.x,u.y,e.x,e.y));
+const inArea=(v,x,y)=>Math.abs(v.x-x)<=1&&Math.abs(v.y-y)<=1;
+const names=list=>list.map(v=>v.name).join(', ');
+function heal(h,n){
+  n=Math.min(n,h.maxhp-h.hp);
+  if(n<=0)return;
+  h.hp+=n;floatText(h,'+'+n,'heal');log(`${h.name} recovers ${n} HP.`);
+}
+function hasten(h,n){h.t=Math.max(S.clock+1,h.t-n);log(`${h.name} moves ${n} up the timeline.`)}
+const spellDmg=(t,n)=>Math.max(1,n+markBonus(t)-armorOf(t));
+function spell(t,n,src){n=spellDmg(t,n);log(`${src} hits ${t.name} for ${n}.`);hurt(t,n,false)}
+function areaPrev(x,y,n,allies){
+  const hit=S.units.filter(v=>v.alive&&inArea(v,x,y)&&(allies||v.enemy));
+  if(!hit.length)return 'Nothing in the area.';
+  const mine=hit.filter(v=>!v.enemy);
+  return `Hits ${hit.map(v=>`${v.name} for ${spellDmg(v,n)}`).join(', ')}.${mine.length?` Warning: this also hits ${names(mine)}.`:''}`;
+}
+function stepSpot(u,e){
+  let best=null,bs=-1;
+  for(const [dx,dy] of DIRS){
+    const x=e.x+dx,y=e.y+dy;
+    if(isWall(x,y)||cell(x,y)==='E'||(unitAt(x,y)&&unitAt(x,y)!==u))continue;
+    const o=unitAt(e.x-dx,e.y-dy),s=(o&&!o.enemy&&o!==u?2:0)+(dx&&dy?0:1);
+    if(s>bs){bs=s;best=[x,y]}
+  }
+  return best;
+}
+function lightningChain(t){
+  const chain=[t];
+  while(chain.length<3){
+    const last=chain.at(-1);
+    const next=S.units.filter(e=>e.alive&&e.enemy&&!chain.includes(e)&&cheb(e,last)<=2).sort((a,b)=>cheb(a,last)-cheb(b,last))[0];
+    if(!next)break;
+    chain.push(next);
+  }
+  return chain;
+}
+const RING=[[1,0],[1,1],[0,1],[-1,1],[-1,0],[-1,-1],[0,-1],[1,-1]];
+function kbPath(a,t,n){
+  const i=RING.findIndex(([dx,dy])=>dx===Math.sign(t.x-a.x)&&dy===Math.sign(t.y-a.y));
+  const dirs=[RING[i],RING[(i+1)%8],RING[(i+7)%8]];
+  let x=t.x,y=t.y;const steps=[];
+  for(let k=0;k<n;k++){
+    const d=dirs.find(([dx,dy])=>{
+      const nx=x+dx,ny=y+dy;
+      return !isWall(nx,ny)&&!unitAt(nx,ny)&&cell(nx,ny)!=='E'&&!(dx&&dy&&(isWall(x+dx,y)||isWall(x,y+dy)))
+        &&dist(nx,ny,a.x,a.y)>dist(x,y,a.x,a.y);
+    });
+    if(!d)return {steps,blocked:true};
+    x+=d[0];y+=d[1];steps.push([x,y]);
+  }
+  return {steps,blocked:false};
+}
+async function knockback(a,t,n){
+  const {steps,blocked}=kbPath(a,t,n);
+  for(const [x,y] of steps){
+    t.x=x;t.y=y;render();await sleep(STEP+60);
+    if(cell(x,y)==='^'){log(`${t.name} is knocked onto spikes for 4.`);hurt(t,4,false);if(!t.alive)return}
+  }
+  if(steps.length)log(`${t.name} is knocked back ${steps.length} tile${steps.length>1?'s':''}.`);
+  if(blocked){log(`${t.name} slams into an obstacle for 2.`);hurt(t,2,false)}
+}
+function kbPreview(a,t,n){
+  const {steps,blocked}=kbPath(a,t,n);
+  if(!steps.length)return 'nowhere, because it is blocked, so it takes 2 extra damage instead';
+  return `${steps.length} tile${steps.length>1?'s':''}`+(blocked?', then it slams into an obstacle for 2':'')
+    +(steps.some(([x,y])=>cell(x,y)==='^')?', onto spikes for 4':'');
+}
+const ABIL={
+ kael:[
+  {name:'Cleave',cd:2,rec:30,target:'self',need:u=>foesNear(u.x,u.y,1).length>0,desc:'Hit every adjacent enemy. Adds 30 recovery.',
+   run:u=>{foesNear(u.x,u.y,1).forEach(e=>strike(u,e,u.dmg))},
+   prev:u=>`Hits ${foesNear(u.x,u.y,1).map(e=>`${e.name} for ${dmgInfo(u,e).dmg}`).join(', ')}. Adds 30 recovery.`},
+  {name:'Reckless Strike',cd:2,rec:0,target:'adjEnemy',desc:'Hit for double damage. Kael takes 4 damage.',
+   run:(u,x,y,t)=>{strike(u,t,u.dmg*2);if(u.alive){log(`${u.name} pays 4 HP for the blow.`);hurt(u,4,false)}},
+   prev:(u,x,y,t)=>`Hits ${t.name} for ${dmgInfo(u,t,u.dmg*2).dmg}. Kael takes 4 damage.`},
+  {name:'War Cry',cd:4,rec:0,target:'self',need:u=>friendsNear(u.x,u.y,3).some(h=>h!==u),desc:'Allies within 3 tiles act 30 sooner.',
+   run:u=>{friendsNear(u.x,u.y,3).filter(h=>h!==u).forEach(h=>hasten(h,30))},
+   prev:u=>`${names(friendsNear(u.x,u.y,3).filter(h=>h!==u))} act 30 sooner.`},
+  {name:'Whirlwind',ult:true,rec:0,target:'self',area:2,need:u=>foesNear(u.x,u.y,2).length>0,desc:'Hit every enemy within 2 tiles for Damage +4.',
+   run:u=>{foesNear(u.x,u.y,2).forEach(e=>strike(u,e,u.dmg+4))},
+   prev:u=>`Hits ${foesNear(u.x,u.y,2).map(e=>`${e.name} for ${dmgInfo(u,e,u.dmg+4).dmg}`).join(', ')}.`}
+ ],
+ bram:[
+  {name:'Holy Smite',cd:2,rec:0,target:'adjEnemy',desc:'Hit and knock the target back 2 tiles.',
+   run:async(u,x,y,t)=>{strike(u,t,u.dmg);render();if(t.alive){await sleep(150);await knockback(u,t,2)}},
+   prev:(u,x,y,t)=>`Hits ${t.name} for ${dmgInfo(u,t).dmg} and knocks it back ${kbPreview(u,t,2)}.`},
+  {name:'Lay on Hands',cd:3,rec:0,target:'ally',range:1,need:(u,h)=>h.hp<h.maxhp,desc:'Heal Bram or an adjacent ally for 12.',
+   run:(u,x,y,t)=>heal(t,12),
+   prev:(u,x,y,t)=>`Heals ${t.name} for ${Math.min(12,t.maxhp-t.hp)}.`},
+  {name:'Divine Shield',cd:3,rec:0,target:'self',desc:'+4 Armor until his next turn.',
+   run:u=>{u.armBuff=4;log(`${u.name} raises a divine shield.`)},
+   prev:u=>`Armor goes from ${u.arm} to ${u.arm+4} until Bram's next turn.`},
+  {name:'Judgment',ult:true,rec:0,target:'self',area:2,desc:'Hit every enemy within 2 tiles, and heal every ally within 2 tiles for 8.',
+   run:u=>{foesNear(u.x,u.y,2).forEach(e=>strike(u,e,u.dmg));friendsNear(u.x,u.y,2).forEach(h=>heal(h,8))},
+   prev:u=>{const f=foesNear(u.x,u.y,2),h=friendsNear(u.x,u.y,2);return `${f.length?`Hits ${f.map(e=>`${e.name} for ${dmgInfo(u,e).dmg}`).join(', ')}. `:''}Heals ${names(h)} for up to 8.`}}
+ ],
+ nyra:[
+  {name:'Hamstring',cd:2,rec:0,target:'adjEnemy',desc:'Light hit that pushes the target 50 back on the timeline.',
+   run:(u,x,y,t)=>{strike(u,t,3);if(t.alive){t.t+=50;log(`${t.name} is pushed 50 back on the timeline.`)}},
+   prev:(u,x,y,t)=>`Hits ${t.name} for ${dmgInfo(u,t,3).dmg} and pushes its next turn 50 later.`},
+  {name:'Poison Blade',cd:3,rec:0,target:'adjEnemy',desc:"Hit, then 3 poison damage at the start of the target's next 2 turns.",
+   run:(u,x,y,t)=>{strike(u,t,u.dmg);if(t.alive){t.poison=2;log(`${t.name} is poisoned.`)}},
+   prev:(u,x,y,t)=>`Hits ${t.name} for ${dmgInfo(u,t).dmg}, then 3 poison damage on each of its next 2 turns.`},
+  {name:'Shadowstep',cd:3,rec:0,target:'enemy',range:5,need:(u,e)=>!!stepSpot(u,e),desc:'Appear next to an enemy within 5 tiles and strike it.',
+   run:async(u,x,y,t)=>{const s=stepSpot(u,t);u.x=s[0];u.y=s[1];render();await sleep(180);strike(u,t,u.dmg)},
+   prev:(u,x,y,t)=>{const s=stepSpot(u,t),i=dmgInfo({...u,x:s[0],y:s[1]},t);return `Appears next to ${t.name} and hits for ${i.dmg}, with a ${Math.round(i.crit*100)}% chance of ${i.critDmg}.`}},
+  {name:'Eviscerate',ult:true,rec:0,target:'adjEnemy',desc:'A guaranteed critical hit.',
+   run:(u,x,y,t)=>{const n=dmgInfo(u,t).critDmg;log(`${u.name} eviscerates ${t.name} for ${n}, a critical.`);hurt(t,n,true)},
+   prev:(u,x,y,t)=>`Hits ${t.name} for ${dmgInfo(u,t).critDmg}, always a critical.`}
+ ],
+ ilse:[
+  {name:'Firestorm',cd:3,rec:40,target:'tile',range:5,area:1,desc:'6 damage to everyone in a 3 by 3 area, allies too. Adds 40 recovery.',
+   run:(u,x,y)=>{S.units.filter(v=>v.alive&&inArea(v,x,y)).forEach(v=>spell(v,6,'Firestorm'))},
+   prev:(u,x,y)=>areaPrev(x,y,6,true)+' Adds 40 recovery.'},
+  {name:'Teleport',cd:3,rec:0,target:'anyTile',desc:'Appear on any open tile on the map.',
+   run:async(u,x,y)=>{u.x=x;u.y=y;render();await sleep(180);log(`${u.name} teleports.`)},
+   prev:()=>'Teleport to this tile. Teleporting never gives free attacks.'},
+  {name:'Frost Nova',cd:3,rec:0,target:'self',need:u=>foesNear(u.x,u.y,1).length>0,desc:"3 damage to adjacent enemies, and they can't move on their next turn.",
+   run:u=>{foesNear(u.x,u.y,1).forEach(e=>{spell(e,3,'Frost Nova');if(e.alive)e.rooted=true})},
+   prev:u=>`Freezes ${names(foesNear(u.x,u.y,1))}: 3 damage and no movement on their next turn.`},
+  {name:'Meteor',ult:true,rec:40,target:'tile',range:6,area:1,desc:'14 damage to every enemy in a 3 by 3 area. Allies are safe. Adds 40 recovery.',
+   run:(u,x,y)=>{foesNear(x,y,1).forEach(e=>spell(e,14,'Meteor'))},
+   prev:(u,x,y)=>areaPrev(x,y,14,false)+' Adds 40 recovery.'}
+ ],
+ wren:[
+  {name:'Pinning Shot',cd:2,rec:0,target:'enemy',range:6,desc:"Ranged hit. The target can't move on its next turn.",
+   run:(u,x,y,t)=>{strike(u,t,u.dmg);if(t.alive){t.rooted=true;log(`${t.name} is pinned in place.`)}},
+   prev:(u,x,y,t)=>`Hits ${t.name} for ${dmgInfo(u,t).dmg} and pins it for its next turn.`},
+  {name:"Hunter's Mark",cd:3,rec:0,target:'enemy',range:8,desc:'The target takes +3 damage from every hit until the end of its second turn.',
+   run:(u,x,y,t)=>{t.marked=2;log(`${t.name} is marked.`)},
+   prev:(u,x,y,t)=>`Marks ${t.name}. Every hit on it deals +3 until the end of its second turn.`},
+  {name:'Volley',cd:3,rec:0,target:'tile',range:6,area:1,desc:'4 damage to every enemy in a 3 by 3 area.',
+   run:(u,x,y)=>{foesNear(x,y,1).forEach(e=>spell(e,4,'Volley'))},
+   prev:(u,x,y)=>areaPrev(x,y,4,false)},
+  {name:'Rain of Arrows',ult:true,rec:0,target:'self',need:u=>sightFoes(u).length>0,desc:'7 damage to every enemy Wren can see within 8 tiles.',
+   run:u=>{sightFoes(u).forEach(e=>spell(e,7,'Rain of Arrows'))},
+   prev:u=>`Hits ${sightFoes(u).map(e=>`${e.name} for ${spellDmg(e,7)}`).join(', ')}.`}
+ ],
+ tova:[
+  {name:'Chain Heal',cd:3,rec:20,target:'self',need:u=>friendsNear(u.x,u.y,2).some(h=>h.hp<h.maxhp),desc:'Heal Tova and every ally within 2 tiles for 7. Adds 20 recovery.',
+   run:u=>friendsNear(u.x,u.y,2).forEach(h=>heal(h,7)),
+   prev:u=>`Heals ${friendsNear(u.x,u.y,2).filter(h=>h.hp<h.maxhp).map(h=>`${h.name} for ${Math.min(7,h.maxhp-h.hp)}`).join(', ')}. Adds 20 recovery.`},
+  {name:'Chain Lightning',cd:2,rec:0,target:'enemy',range:4,desc:'5 damage to the target, then 4 to up to 2 more enemies within 2 tiles.',
+   run:(u,x,y,t)=>{lightningChain(t).forEach((e,i)=>spell(e,i?4:5,'Chain Lightning'))},
+   prev:(u,x,y,t)=>`Hits ${lightningChain(t).map((e,i)=>`${e.name} for ${spellDmg(e,i?4:5)}`).join(', then ')}.`},
+  {name:'Earthbind',cd:3,rec:0,target:'tile',range:5,area:1,desc:"Every enemy in a 3 by 3 area can't move on its next turn.",
+   run:(u,x,y)=>{foesNear(x,y,1).forEach(e=>{e.rooted=true;log(`${e.name} is bound by the earth.`)})},
+   prev:(u,x,y)=>{const f=foesNear(x,y,1);return f.length?`Pins ${names(f)} for their next turn.`:'No enemies in the area.'}},
+  {name:'Ancestral Call',ult:true,rec:0,target:'self',desc:'Heal every hero for 15. The others act 30 sooner.',
+   run:u=>{S.units.filter(h=>h.alive&&!h.enemy).forEach(h=>{heal(h,15);if(h!==u)hasten(h,30)})},
+   prev:()=>'Heals every hero for up to 15, and the others act 30 sooner.'}
+ ]
+};
+const abilityReady=(u,i)=>u.abilities[i].ult?u.ult>=100:u.cds[i]===0;
+function abilityTargets(u,i){
+  const a=u.abilities[i];
+  if(u.acted||!abilityReady(u,i))return [];
+  const need=v=>!a.need||a.need(u,v);
   const out=[];
-  for(let y=1;y<H-1;y++)for(let x=1;x<W-1;x++){
-    if(isWall(x,y))continue;
-    const d=dist(x,y,u.x,u.y);
-    if(d<=5&&(d===0||los(u.x,u.y,x,y)))out.push({x,y});
+  switch(a.target){
+    case 'self':return need(u)?[P(u)]:[];
+    case 'adjEnemy':return S.units.filter(e=>e.alive&&e.enemy&&cheb(e,u)===1&&need(e)).map(P);
+    case 'ally':return S.units.filter(h=>h.alive&&!h.enemy&&cheb(h,u)<=a.range&&need(h)).map(P);
+    case 'enemy':return S.units.filter(e=>e.alive&&e.enemy&&cheb(e,u)<=a.range&&los(u.x,u.y,e.x,e.y)&&need(e)).map(P);
+    case 'tile':
+      for(let y=1;y<H-1;y++)for(let x=1;x<W-1;x++){
+        if(isWall(x,y)||cell(x,y)==='E')continue;
+        const d=dist(x,y,u.x,u.y);
+        if(d<=a.range&&(d===0||los(u.x,u.y,x,y)))out.push({x,y});
+      }
+      return out;
+    case 'anyTile':
+      for(let y=1;y<H-1;y++)for(let x=1;x<W-1;x++)if(!isWall(x,y)&&cell(x,y)!=='E'&&!unitAt(x,y))out.push({x,y});
+      return out;
   }
   return out;
 }
-const inArea=(v,x,y)=>Math.abs(v.x-x)<=1&&Math.abs(v.y-y)<=1;
-async function doAbility(u,x,y){
+async function doAbility(u,i,x,y){
   S.busy=true;S.pending=null;
-  const a=u.ability,tgt=unitAt(x,y);
-  if(S.units.some(e=>e.enemy&&e.alive&&!e.awake&&(cheb(e,u)<=1||inArea(e,x,y))))wakeAll();
+  const a=u.abilities[i],t=unitAt(x,y);
+  if(S.units.some(e=>e.enemy&&e.alive&&!e.awake&&(dist(e.x,e.y,x,y)<=2||cheb(e,u)<=2)))wakeAll();
   log(`${u.name} uses ${a.name}.`);
-  if(u.sub==='Barbarian'){
-    for(const e of S.units.filter(e=>e.alive&&e.enemy&&cheb(e,u)===1))strike(u,e,u.dmg);
-  }else if(u.sub==='Paladin'){
-    strike(u,tgt,u.dmg);render();
-    if(tgt.alive){await sleep(150);await knockback(u,tgt,2)}
-  }else if(u.sub==='Hunter'){
-    strike(u,tgt,u.dmg);
-    if(tgt.alive){tgt.rooted=true;log(`${tgt.name} is pinned in place.`)}
-  }else if(u.sub==='Shaman'){
-    for(const h of S.units.filter(h=>h.alive&&!h.enemy&&cheb(h,u)<=2)){
-      const n=Math.min(7,h.maxhp-h.hp);if(!n)continue;
-      h.hp+=n;floatText(h,'+'+n,'heal');log(`Chain Heal restores ${n} to ${h.name}.`);
-    }
-  }else if(u.sub==='Rogue'){
-    strike(u,tgt,3);
-    if(tgt.alive){tgt.t+=50;log(`${tgt.name} is pushed 50 back on the timeline.`)}
-  }else{
-    for(const v of S.units.filter(v=>v.alive&&inArea(v,x,y))){
-      const n=Math.max(1,6-v.arm);log(`Firestorm burns ${v.name} for ${n}.`);hurt(v,n,false);
-    }
-  }
-  u.cd=a.cd;u.rec+=a.rec;u.acted=true;S.mode='move';
+  await a.run(u,x,y,t);
+  if(a.ult)u.ult=0;else u.cds[i]=a.cd;
+  u.rec+=a.rec||0;u.acted=true;S.mode='move';S.abIdx=null;
   checkWake();render();await sleep(250);afterAction();
-}
-async function knockback(a,t,n){
-  const dx=Math.sign(t.x-a.x),dy=Math.sign(t.y-a.y);
-  for(let i=0;i<n;i++){
-    const nx=t.x+dx,ny=t.y+dy;
-    if(isWall(nx,ny)||unitAt(nx,ny)||cell(nx,ny)==='E'||(dx&&dy&&(isWall(t.x+dx,t.y)||isWall(t.x,t.y+dy)))){
-      log(`${t.name} slams into an obstacle for 2.`);hurt(t,2,false);return;
-    }
-    t.x=nx;t.y=ny;render();await sleep(STEP+40);
-    if(cell(nx,ny)==='^'){log(`${t.name} is knocked onto spikes for 4.`);hurt(t,4,false);if(!t.alive)return}
-  }
 }
 
 /* ---------- enemy AI ---------- */
@@ -658,10 +799,11 @@ function heroUI(){
   if(squad.length<4||!u||u.enemy||S.busy||S.over)return null;
   const ui={moves:[],attacks:[],ability:[],area:new Set()};
   if(S.mode==='ability'){
-    ui.ability=abilityTargets(u);
-    const f=S.pending||S.hover;
-    if(u.sub==='Sorcerer'&&f&&ui.ability.some(t=>t.x===f.x&&t.y===f.y))
-      for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)ui.area.add((f.y+dy)*W+f.x+dx);
+    ui.ability=abilityTargets(u,S.abIdx);
+    const a=u.abilities[S.abIdx],f=a.target==='self'?P(u):(S.pending||S.hover);
+    if(a.area&&f&&ui.ability.some(t=>t.x===f.x&&t.y===f.y))
+      for(let dy=-a.area;dy<=a.area;dy++)for(let dx=-a.area;dx<=a.area;dx++)ui.area.add((f.y+dy)*W+f.x+dx);
+    if(a.name==='Rain of Arrows')sightFoes(u).forEach(e=>ui.area.add(e.y*W+e.x));
   }else{
     if(!u.moved)ui.moves=moveOptions(u);
     if(!u.acted)ui.attacks=S.units.filter(t=>t.enemy&&canAttack(u,t));
@@ -676,7 +818,7 @@ function onTile(x,y,mouse){
   const ui=heroUI();
   if(S.mode==='ability'){
     if(!ui.ability.some(t=>t.x===x&&t.y===y)){S.pending=null;render();return}
-    if(mouse||isPending(x,y))doAbility(u,x,y);else{S.pending={x,y};render()}
+    if(mouse||isPending(x,y)||u.abilities[S.abIdx].target==='self')doAbility(u,S.abIdx,x,y);else{S.pending={x,y};render()}
     return;
   }
   const t=unitAt(x,y);
@@ -688,11 +830,13 @@ function onTile(x,y,mouse){
   if(m){doMove(u,m);return}
   S.pending=null;render();
 }
-function toggleAbility(){
+function toggleAbility(i){
   const u=S.cur;
   if(squad.length<4||!u||u.enemy||S.busy||S.over)return;
-  if(S.mode==='ability'){S.mode='move'}
-  else if(abilityTargets(u).length){S.mode='ability'}
+  if(S.mode==='ability'&&S.abIdx===i){
+    if(u.abilities[i].target==='self'&&abilityTargets(u,i).length){doAbility(u,i,u.x,u.y);return}
+    S.mode='move';S.abIdx=null;
+  }else if(abilityTargets(u,i).length){S.mode='ability';S.abIdx=i}
   S.pending=null;render();
 }
 function userEndTurn(){
@@ -747,11 +891,12 @@ function renderTokens(){
     }
     if(!el){
       el=document.createElement('div');
-      el.innerHTML='<div class="disc"></div><div class="hp"><i></i></div><span class="zz">z z</span>';
+      el.innerHTML='<div class="disc"></div><div class="hp"><i></i></div><span class="zz">z z</span><span class="st"></span>';
       tokensEl.appendChild(el);tokEls.set(u.uid,el);
     }
     el.style.left=(u.x*100/W)+'%';el.style.top=(u.y*100/H)+'%';
     el.querySelector('.disc').textContent=u.glyph;
+    el.querySelector('.st').textContent=[u.rooted&&'PIN',u.poison>0&&'PSN',u.marked>0&&'MRK',u.armBuff&&'SHD'].filter(Boolean).join(' ');
     el.querySelector('.hp i').style.width=(100*u.hp/u.maxhp)+'%';
     el.className='tok '+(u.enemy?'foe foe-'+u.kind:'hero')+(S.cur===u?' active':'')+(u.enemy&&!u.awake?' asleep':'')
       +(atk.has(u.uid)?' target':'')+(isPending(u.x,u.y)?' pending':'')+(S.hl===u.uid?' hl':'');
@@ -794,9 +939,10 @@ function previewText(){
   if(!ui)return 'Resolving.';
   const f=S.pending||S.hover;
   if(S.mode==='ability'){
-    const a=u.ability;
-    if(!f||!ui.ability.some(t=>t.x===f.x&&t.y===f.y))return `Pick a target for ${a.name}. ${a.desc}`;
-    return abilityPreview(u,f.x,f.y)+(S.pending?' Tap again to confirm.':'');
+    const a=u.abilities[S.abIdx];
+    if(a.target==='self')return `<b>${a.name}:</b> ${a.prev(u,u.x,u.y,u)} Press it again, or tap ${u.name}, to use it.`;
+    if(!f||!ui.ability.some(t=>t.x===f.x&&t.y===f.y))return `<b>${a.name}:</b> ${a.desc} Pick a highlighted target.`;
+    return `<b>${a.name}:</b> ${a.prev(u,f.x,f.y,unitAt(f.x,f.y))}`+(S.pending?' Tap again to confirm.':'');
   }
   if(f){
     const t=unitAt(f.x,f.y);
@@ -812,34 +958,24 @@ function previewText(){
       if(crossesSpikes(u,m))s+=' Spikes deal 4 damage.';
       return s;
     }
-    if(t&&t.enemy)return `${t.name}: ${t.hp}/${t.maxhp} HP, Damage ${t.dmg}, Armor ${t.arm}, Attack Speed ${t.spd}, Move ${t.move}. ${EN[t.kind].rule}`;
+    if(t&&t.enemy)return `${t.name}: ${t.hp}/${t.maxhp} HP, Damage ${t.dmg}, Armor ${t.arm}, Attack Speed ${t.spd}, Move ${t.move}. ${EN[t.kind].rule}${[t.rooted&&' Pinned: it cannot move next turn.',t.poison>0&&` Poisoned for ${t.poison} more turn${t.poison>1?'s':''}.`,t.marked>0&&' Marked: +3 damage from every hit.'].filter(Boolean).join('')}`;
   }
   if(u.moved&&u.acted)return 'Turn complete.';
   if(!S.combat)return 'Explore the room. The enemies wake when a hero comes within 5 tiles in sight.';
   return 'Tap a highlighted tile to move, or a ringed enemy to preview an attack.';
-}
-function abilityPreview(u,x,y){
-  const t=unitAt(x,y);
-  if(u.sub==='Barbarian'){
-    const adj=S.units.filter(e=>e.alive&&e.enemy&&cheb(e,u)===1);
-    return `Cleave hits ${adj.map(e=>`${e.name} for ${dmgInfo(u,e).dmg}`).join(', ')}. Adds 30 recovery, so Kael's next turn comes later.`;
-  }
-  if(u.sub==='Paladin')return `Holy Smite hits ${t.name} for ${dmgInfo(u,t).dmg} and knocks it 2 tiles back. Spikes add 4, an obstacle adds 2.`;
-  if(u.sub==='Hunter')return `Pinning Shot hits ${t.name} for ${dmgInfo(u,t).dmg}. It cannot move on its next turn.`;
-  if(u.sub==='Shaman')return `Chain Heal restores up to 7 HP to ${S.units.filter(h=>h.alive&&!h.enemy&&cheb(h,u)<=2&&h.hp<h.maxhp).map(h=>h.name).join(', ')}. Adds 20 recovery.`;
-  if(u.sub==='Rogue')return `Hamstring hits ${t.name} for ${dmgInfo(u,t,3).dmg} and pushes its next turn 50 later.`;
-  const hit=S.units.filter(v=>v.alive&&inArea(v,x,y));
-  if(!hit.length)return 'Firestorm would hit nothing here. Adds 40 recovery.';
-  const allies=hit.filter(v=>!v.enemy);
-  return `Firestorm hits ${hit.map(v=>`${v.name} for ${Math.max(1,6-v.arm)}`).join(', ')}.${allies.length?` Warning: this burns ${allies.map(v=>v.name).join(' and ')}.`:''} Adds 40 recovery.`;
 }
 function renderUnit(){
   const u=S.cur;
   if(!u){$('unit').innerHTML='';return}
   const rule=u.enemy?EN[u.kind].rule:u.rule;
   const hero=!u.enemy,canAct=hero&&!S.busy&&!S.over;
-  const abReady=hero&&u.cd===0&&!u.acted&&abilityTargets(u).length>0;
-  const abNote=hero?(u.cd>0?`ready in ${u.cd} turn${u.cd>1?'s':''}`:u.acted?'action used':abilityTargets(u).length?(S.mode==='ability'?'tap to cancel':u.ability.desc):'no target in reach'):'';
+  const abBtn=(a,i)=>{
+    const sel=S.mode==='ability'&&S.abIdx===i,has=abilityTargets(u,i).length>0;
+    const note=sel?(a.target==='self'?'press again to use':'tap to cancel')
+      :a.ult?(u.ult>=100?(has?'ultimate ready':'no target'):`ultimate ${u.ult}%`)
+      :u.cds[i]>0?`ready in ${u.cds[i]} turn${u.cds[i]>1?'s':''}`:u.acted?'action used':has?'ready':'no target';
+    return `<button class="ab${a.ult?' ult':''}${sel?' on':''}" data-ab="${i}" title="${a.desc.replace(/"/g,'&quot;')}" ${canAct&&(has||sel)?'':'disabled'}><span class="key">${i+1}</span>${a.name}<span class="small">${note}</span></button>`;
+  };
   $('unit').innerHTML=`
     <div class="uc-head${u.enemy?' foe':''}"><span class="badge">${u.glyph}</span>
       <div><h2>${u.name}</h2><p>${u.enemy?'Enemy':(u.race+' · '+u.sub)}</p></div></div>
@@ -851,8 +987,8 @@ function renderUnit(){
     <p class="rule">${rule}</p>
     ${hero?`<div class="status"><span class="pill${u.moved?'':' ok'}">Move ${u.moved?'used':'ready'}</span><span class="pill${u.acted?'':' ok'}">Action ${u.acted?'used':'ready'}</span></div>
     <div class="actions">
-      <button id="btn-ability" class="${S.mode==='ability'?'on':''}" ${canAct&&(abReady||S.mode==='ability')?'':'disabled'}>${u.ability.name}<span class="small">${abNote}</span></button>
-      <button id="btn-end" ${canAct?'':'disabled'}>End turn<span class="small">next turn in ${Math.round(1000/u.spd+u.rec)}</span></button>
+      ${u.abilities.map(abBtn).join('')}
+      <button id="btn-end" class="end" ${canAct?'':'disabled'}>End turn<span class="small">next turn in ${Math.round(1000/u.spd+u.rec)}</span></button>
     </div>`:''}
     <div class="preview" aria-live="polite">${previewText()}</div>`;
 }
@@ -899,7 +1035,7 @@ tilesEl.addEventListener('mouseleave',()=>{S.hover=null;render()});
 document.addEventListener('click',e=>{
   const pk=e.target.closest('[data-pick]');
   if(pk)togglePick(pk.dataset.pick);
-  else if(e.target.closest('#btn-ability'))toggleAbility();
+  else if(e.target.closest('[data-ab]'))toggleAbility(+e.target.closest('[data-ab]').dataset.ab);
   else if(e.target.closest('#btn-end'))userEndTurn();
   else if(e.target.closest('#btn-restart'))init();
 });
@@ -911,9 +1047,9 @@ $('timeline').addEventListener('mouseleave',()=>{S.hl=null;renderTokens()});
 document.addEventListener('keydown',e=>{
   if(e.target.closest('input,textarea'))return;
   const k=e.key.toLowerCase();
-  if(k==='a')toggleAbility();
+  if(['1','2','3','4'].includes(k))toggleAbility(+k-1);
   else if(k==='e')userEndTurn();
-  else if(k==='escape'){if(S.mode==='ability')S.mode='move';S.pending=null;render()}
+  else if(k==='escape'){if(S.mode==='ability'){S.mode='move';S.abIdx=null}S.pending=null;render()}
 });
 init();
 </script>
