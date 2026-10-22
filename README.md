@@ -8,8 +8,16 @@ Target platforms: PC and mobile first, VR later. Engine: Unity.
 
 | Path | What it is |
 | --- | --- |
+| `Assets/`, `Packages/`, `ProjectSettings/` | The Unity 6 project: the combat prototype ported to Unity. See [docs/UNITY_SETUP.md](docs/UNITY_SETUP.md) to open and play it. |
+| `Assets/ShardsOfEternity/Scripts/Core` | Game rules in plain C#, with unit tests. |
 | `prototype/index.html` | Playable browser prototype of one combat room. Open it in any browser. |
-| `.gitignore` | Unity ignore rules, ready for the Unity project. |
+| `.gitignore`, `.gitattributes` | Unity ignore rules and line-ending and merge settings. |
+
+## The Unity prototype
+
+Open the repository folder in Unity Hub with Unity 6 LTS and press Play. The first open creates the prototype scene for you. Full steps, controls and troubleshooting are in [docs/UNITY_SETUP.md](docs/UNITY_SETUP.md).
+
+It has the same rules as the browser prototype, plus a procedural room generator with two themes (Ashen Crypt and Hellforge).
 
 ## The combat prototype
 
