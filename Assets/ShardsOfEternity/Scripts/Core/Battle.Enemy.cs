@@ -42,6 +42,12 @@ namespace ShardsOfEternity.Core
         {
             var u = Current;
             if (IsOver || u == null || !u.IsEnemy || !u.Alive) return;
+            if (TrySpecialAction(u))
+            {
+                u.Rooted = false;
+                return;
+            }
+            int dashed = 0;
 
             var targets = Heroes.Where(h => CanHitFrom(u, u.X, u.Y, h)).ToList();
             bool ranged = u.Range > 1;
@@ -80,6 +86,7 @@ namespace ShardsOfEternity.Core
                 {
                     u.X = best.Target.X;
                     u.Y = best.Target.Y;
+                    dashed = best.Distance;
                     Emit(new BattleEvent { Type = BattleEventType.Moved, Unit = u, Path = best.Path, To = best.Target });
                 }
             }
@@ -95,11 +102,63 @@ namespace ShardsOfEternity.Core
                 }
                 else
                 {
-                    var target = targets.OrderBy(h => h.Hp - GetDamageInfo(u, h).Damage).First();
-                    Strike(u, target, u.Damage);
+                    bool pounce = u.Def.EnemyKind == EnemyKind.Hellhound && dashed >= PounceDistance;
+                    int damage = u.Damage + (pounce ? PounceBonus : 0);
+                    var target = targets.OrderBy(h => h.Hp - GetDamageInfo(u, h, damage).Damage).First();
+                    if (pounce) Say($"{u.Name} pounces on {target.Name}.");
+                    Strike(u, target, damage);
                 }
             }
             u.Rooted = false;
+        }
+
+        public const int PounceDistance = 3, PounceBonus = 3;
+        public const int CultistHeal = 8, CultistHealRange = 3;
+        public const int MaxSummons = 2;
+
+        /// <summary>A demon with at most this share of its Health left is "badly wounded" to a Cultist.</summary>
+        const double CultistHealBelow = 0.6;
+
+        /// <summary>
+        /// Turns that replace moving and attacking: a Cultist healing a wounded demon, or a Rift Caller summoning
+        /// an Imp. Returns false when the enemy should take a normal turn instead.
+        /// </summary>
+        bool TrySpecialAction(Unit u)
+        {
+            switch (u.Def.EnemyKind)
+            {
+                case EnemyKind.Cultist:
+                    var patient = Enemies
+                        .Where(e => e.Awake && Point.Distance(e.Position, u.Position) <= CultistHealRange &&
+                                    e.Hp <= e.MaxHp * CultistHealBelow)
+                        .OrderBy(e => (double)e.Hp / e.MaxHp).FirstOrDefault();
+                    if (patient == null) return false;
+                    Say($"{u.Name} mends {patient.Name}'s wounds.");
+                    Heal(patient, CultistHeal);
+                    return true;
+
+                case EnemyKind.RiftCaller:
+                    if (u.SummonCooldown > 0)
+                    {
+                        u.SummonCooldown--;
+                        return false;
+                    }
+                    if (Units.Count(s => s.Alive && s.SummonedBy == u) >= MaxSummons) return false;
+                    var spot = FreeNear(u.Position);
+                    if (spot == null || Point.Distance(spot.Value, u.Position) > 2) return false;
+                    var imp = AddUnit(Roster.Enemy(EnemyKind.Imp), spot.Value);
+                    imp.Awake = true;
+                    imp.IsReinforcement = true;
+                    imp.SummonedBy = u;
+                    imp.NextTurnAt = Clock + imp.TurnInterval;
+                    u.SummonCooldown = 1;
+                    Say($"{u.Name} tears open a small rift. An Imp crawls out.");
+                    Emit(new BattleEvent { Type = BattleEventType.Spawned, Unit = imp });
+                    return true;
+
+                default:
+                    return false;
+            }
         }
     }
 }

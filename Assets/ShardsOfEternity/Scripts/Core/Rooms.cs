@@ -17,6 +17,8 @@ namespace ShardsOfEternity.Core
         /// <summary>Enemies that can start in the room, repeated to weight them.</summary>
         public EnemyKind[] Pool;
         public int MaxHellknights = 1;
+        /// <summary>Summoners are capped too, so a room never fills with Imps.</summary>
+        public int MaxRiftCallers = 1;
         public EnemyKind[] FirstWave;
         public EnemyKind[] LaterWaves;
 
@@ -39,7 +41,25 @@ namespace ShardsOfEternity.Core
             LaterWaves = new[] { EnemyKind.Imp, EnemyKind.Ghoul, EnemyKind.Imp },
         };
 
-        public static readonly Theme[] All = { AshenCrypt, Hellforge };
+        public static readonly Theme ShadowCathedral = new Theme
+        {
+            Name = "Shadow Cathedral",
+            FloorColor = 0x2E2A3D, WallColor = 0x14121C, AccentColor = 0xB58CFF,
+            Pool = new[] { EnemyKind.Cultist, EnemyKind.Cultist, EnemyKind.Ghoul, EnemyKind.Ghoul, EnemyKind.RiftCaller, EnemyKind.Hellknight },
+            FirstWave = new[] { EnemyKind.Ghoul, EnemyKind.Cultist },
+            LaterWaves = new[] { EnemyKind.Ghoul, EnemyKind.Cultist, EnemyKind.Ghoul },
+        };
+
+        public static readonly Theme HowlingWastes = new Theme
+        {
+            Name = "Howling Wastes",
+            FloorColor = 0x4A4034, WallColor = 0x221D17, AccentColor = 0xFFC857,
+            Pool = new[] { EnemyKind.Hellhound, EnemyKind.Hellhound, EnemyKind.Hellhound, EnemyKind.Imp, EnemyKind.Ghoul, EnemyKind.RiftCaller },
+            FirstWave = new[] { EnemyKind.Hellhound, EnemyKind.Hellhound },
+            LaterWaves = new[] { EnemyKind.Hellhound, EnemyKind.Imp, EnemyKind.Hellhound },
+        };
+
+        public static readonly Theme[] All = { AshenCrypt, Hellforge, ShadowCathedral, HowlingWastes };
     }
 
     public struct EnemySpawn
@@ -109,7 +129,8 @@ namespace ShardsOfEternity.Core
     public static class RoomGenerator
     {
         /// <param name="bossFloor">Put the Rift Lord in the room, with a smaller escort.</param>
-        public static RoomLayout Generate(int seed, Theme theme = null, bool bossFloor = false)
+        /// <param name="floor">1-based floor in a run. Every 4 floors adds an enemy.</param>
+        public static RoomLayout Generate(int seed, Theme theme = null, bool bossFloor = false, int floor = 1)
         {
             var rng = new Random(seed);
             theme = theme ?? Theme.All[rng.Next(Theme.All.Length)];
@@ -170,7 +191,7 @@ namespace ShardsOfEternity.Core
                     var p = new Point(x, y);
                     if (Free(p) && layout.HeroSlots.All(h => Point.Distance(h, p) > 5)) candidates.Add(p);
                 }
-            int enemyCount = bossFloor ? 4 + rng.Next(2) : 5 + rng.Next(3), knights = 0;
+            int enemyCount = (bossFloor ? 4 + rng.Next(2) : 5 + rng.Next(3)) + Math.Max(0, floor - 1) / 4, knights = 0, callers = 0;
             if (bossFloor && candidates.Count > 0)
             {
                 // The boss waits at the far east of the room.
@@ -184,6 +205,7 @@ namespace ShardsOfEternity.Core
                 candidates.Remove(p);
                 var kind = theme.Pool[rng.Next(theme.Pool.Length)];
                 if (kind == EnemyKind.Hellknight && ++knights > theme.MaxHellknights) kind = EnemyKind.Ghoul;
+                if (kind == EnemyKind.RiftCaller && ++callers > theme.MaxRiftCallers) kind = EnemyKind.Ghoul;
                 layout.Enemies.Add(new EnemySpawn(kind, p));
             }
             return layout;

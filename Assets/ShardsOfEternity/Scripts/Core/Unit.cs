@@ -27,8 +27,12 @@ namespace ShardsOfEternity.Core
         /// <summary>Extra timeline delay added when this turn ends, from heavy abilities.</summary>
         public int Recovery;
 
-        /// <summary>Arrived with a reinforcement wave. Drops loot half as often.</summary>
+        /// <summary>Arrived with a reinforcement wave or a summon. Drops loot half as often.</summary>
         public bool IsReinforcement;
+        /// <summary>The Rift Caller that summoned this unit, if any.</summary>
+        public Unit SummonedBy;
+        /// <summary>Rift Caller: turns until it can summon again.</summary>
+        public int SummonCooldown;
 
         public bool Moved;
         public bool Acted;

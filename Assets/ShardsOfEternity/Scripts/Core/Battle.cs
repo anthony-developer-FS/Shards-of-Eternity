@@ -109,8 +109,17 @@ namespace ShardsOfEternity.Core
         public Unit AddUnit(UnitDef def, Point position)
         {
             var u = new Unit(nextUnitId++, def, position);
+            if (u.IsEnemy) ScaleForFloor(u, Layout.Floor);
             Units.Add(u);
             return u;
+        }
+
+        /// <summary>Deeper floors make enemies tougher: +8% Health per floor and +1 Damage every 3 floors.</summary>
+        public static void ScaleForFloor(Unit u, int floor)
+        {
+            int depth = Math.Max(0, floor - 1);
+            u.MaxHp = u.Hp = (int)Math.Round(u.Def.Hp * (1 + 0.08 * depth));
+            u.Damage = u.Def.Damage + depth / 3;
         }
 
         /// <summary>
@@ -408,7 +417,7 @@ namespace ShardsOfEternity.Core
 
         /// <summary>
         /// Sends a reinforcement wave out of the rift spawn. The front end calls this on a real-time countdown
-        /// (every 2 minutes of unpaused play by default), between turns.
+        /// (see <see cref="ReinforcementSchedule"/>), between turns.
         /// </summary>
         public void CallReinforcements()
         {
