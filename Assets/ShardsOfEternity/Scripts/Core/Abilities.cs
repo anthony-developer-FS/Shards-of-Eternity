@@ -16,6 +16,8 @@ namespace ShardsOfEternity.Core
         Tile,
         /// <summary>Any empty open tile on the map.</summary>
         AnyTile,
+        /// <summary>The body of a fallen hero within <see cref="Ability.Range"/>.</summary>
+        FallenAlly,
     }
 
     /// <summary>
@@ -57,6 +59,7 @@ namespace ShardsOfEternity.Core
                 case HeroClass.Sorcerer: return Sorcerer();
                 case HeroClass.Hunter: return Hunter();
                 case HeroClass.Shaman: return Shaman();
+                case HeroClass.Priest: return Priest();
                 default: throw new ArgumentOutOfRangeException(nameof(cls));
             }
         }
@@ -367,6 +370,68 @@ namespace ShardsOfEternity.Core
                     }
                 },
                 Preview = (b, u, p, t) => "Heals every hero for up to 15, and the others act 30 sooner.",
+            },
+        };
+
+        static Ability[] Priest() => new[]
+        {
+            new Ability
+            {
+                Name = "Holy Light", Cooldown = 2, Target = TargetKind.Ally, Range = 4,
+                Description = "Heal Sera or an ally within 4 tiles for 10 and cure poison.",
+                Need = (b, u, h) => h.Hp < h.MaxHp || h.Poison > 0,
+                Run = (b, u, p, t) => b.Heal(t, 10, u),
+                Preview = (b, u, p, t) => $"Heals {t.Name} for {Math.Min(10, t.MaxHp - t.Hp)}" +
+                    (t.Poison > 0 ? " and cures the poison." : "."),
+            },
+            new Ability
+            {
+                Name = "Resurrection", Cooldown = 6, Recovery = 30, Target = TargetKind.FallenAlly, Range = 3,
+                Description = "Bring a fallen ally within 3 tiles back at half HP. Adds 30 recovery.",
+                Need = (b, u, h) => b.FreeTileNear(h.Position).HasValue,
+                Run = (b, u, p, t) =>
+                {
+                    var h = b.FallenAt(p);
+                    b.Revive(h, b.FreeTileNear(p).Value, Math.Max(1, h.MaxHp / 2));
+                },
+                Preview = (b, u, p, t) =>
+                {
+                    var h = b.FallenAt(p);
+                    return $"{h.Name} gets back up with {Math.Max(1, h.MaxHp / 2)} HP and takes a turn soon after. Adds 30 recovery.";
+                },
+            },
+            new Ability
+            {
+                Name = "Sanctuary", Cooldown = 3, Target = TargetKind.Self, Area = 2,
+                Description = "Sera and every ally within 2 tiles get +2 Armor until their next turn.",
+                Run = (b, u, p, t) =>
+                {
+                    foreach (var h in b.FriendsNear(u.Position, 2)) h.ArmorBuff = Math.Max(h.ArmorBuff, 2);
+                    b.Note("A circle of light shields the squad.");
+                },
+                Preview = (b, u, p, t) => $"{Battle.Names(b.FriendsNear(u.Position, 2))} get +2 Armor until their next turn.",
+            },
+            new Ability
+            {
+                Name = "Mass Resurrection", IsUltimate = true, Recovery = 30, Target = TargetKind.Self,
+                Description = "Every fallen hero gets back up next to Sera with a third of their HP. Everyone else heals for 10.",
+                Need = (b, u, _) => b.FallenHeroes.Any() || b.Heroes.Any(h => h.Hp < h.MaxHp || h.Poison > 0),
+                Run = (b, u, p, t) =>
+                {
+                    var standing = b.Heroes.ToList();
+                    foreach (var h in b.FallenHeroes.ToList())
+                    {
+                        var spot = b.FreeTileNear(u.Position);
+                        if (spot.HasValue) b.Revive(h, spot.Value, Math.Max(1, h.MaxHp / 3));
+                    }
+                    foreach (var h in standing) b.Heal(h, 10, u);
+                },
+                Preview = (b, u, p, t) =>
+                {
+                    var fallen = b.FallenHeroes.ToList();
+                    return (fallen.Count > 0 ? $"Revives {Battle.Names(fallen)}. " : "") +
+                        $"Heals {Battle.Names(b.Heroes)} for up to 10. Adds 30 recovery.";
+                },
             },
         };
     }

@@ -16,6 +16,7 @@ namespace ShardsOfEternity.Core
         Sorcerer,
         Hunter,
         Shaman,
+        Priest,
     }
 
     public enum EnemyKind
@@ -71,6 +72,8 @@ namespace ShardsOfEternity.Core
                 "Steady aim: +2 damage on attacks made before moving this turn."),
             Hero("tova", "Tova", HeroClass.Shaman, "Sh", 24, 5, 2, 9, 3, 3, .1, 1,
                 "Spirit swap: instead of walking, trade places with an ally next to her."),
+            Hero("sera", "Sera", HeroClass.Priest, "Pr", 22, 5, 1, 10, 3, 3, .1, 1,
+                "Mercy: her heals also cure poison. Resurrection brings fallen allies back."),
         };
 
         public static readonly IReadOnlyList<UnitDef> Enemies = new[]

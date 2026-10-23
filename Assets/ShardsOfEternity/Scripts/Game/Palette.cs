@@ -29,6 +29,7 @@ namespace ShardsOfEternity.Game
         public static readonly Color Heal = Hex(0x6EE7A0);
         public static readonly Color Crit = Hex(0xFFD54A);
         public static readonly Color Pillar = Hex(0x6B6F7D);
+        public static readonly Color Fallen = Hex(0x55585F);
 
         public static Color Hex(uint rgb) =>
             new Color32((byte)(rgb >> 16), (byte)(rgb >> 8), (byte)rgb, 255);
@@ -52,6 +53,7 @@ namespace ShardsOfEternity.Game
                 case HeroClass.Rogue: return Hex(0x9B6BDF);
                 case HeroClass.Sorcerer: return Hex(0x4FA3F7);
                 case HeroClass.Hunter: return Hex(0x5CB85C);
+                case HeroClass.Priest: return Hex(0xF2EEFF);
                 default: return Hex(0x3FC1B0);
             }
         }
