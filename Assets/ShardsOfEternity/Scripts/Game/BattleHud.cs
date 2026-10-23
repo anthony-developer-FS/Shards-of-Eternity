@@ -147,7 +147,7 @@ namespace ShardsOfEternity.Game
         public bool IsOverHud(Vector2 screen)
         {
             if (root?.panel == null) return false;
-            var p = RuntimePanelUtils.ScreenToPanel(root.panel, new Vector2(screen.x, Screen.height - screen.y));
+            var p = ScreenToPanel(screen, Screen.width, Screen.height);
             var picked = root.panel.Pick(p);
             return picked != null && picked != root;
         }
@@ -233,7 +233,7 @@ namespace ShardsOfEternity.Game
             label.EnableInClassList("floater--big", big);
             label.style.color = color;
             label.Ignore();
-            floaters.Add(new Floater { Label = label, World = world + Vector3.up * 1.1f, Born = Time.time, Color = color });
+            floaters.Add(new Floater { Label = label, World = world + Vector3.up * 1.1f, Born = Time.unscaledTime, Color = color });
         }
 
         void UpdateWorldOverlays()
@@ -286,7 +286,7 @@ namespace ShardsOfEternity.Game
             for (int i = floaters.Count - 1; i >= 0; i--)
             {
                 var f = floaters[i];
-                float age = Time.time - f.Born;
+                float age = Time.unscaledTime - f.Born;
                 if (age > FloaterLife || Battle == null)
                 {
                     f.Label.RemoveFromHierarchy();
@@ -306,8 +306,18 @@ namespace ShardsOfEternity.Game
         Vector2 ToPanel(Vector3 screen)
         {
             var target = Controller.Camera.targetTexture;
-            float height = target != null ? target.height : Screen.height;
-            return RuntimePanelUtils.ScreenToPanel(root.panel, new Vector2(screen.x, height - screen.y));
+            return target != null ? ScreenToPanel(screen, target.width, target.height) : ScreenToPanel(screen, Screen.width, Screen.height);
+        }
+
+        /// <summary>
+        /// Pixels (bottom-left origin) on a surface of the given size to panel coordinates (top-left origin). The panel
+        /// covers the whole surface, so this is a flip and a scale by the panel's own size.
+        /// </summary>
+        Vector2 ScreenToPanel(Vector2 pixels, float surfaceWidth, float surfaceHeight)
+        {
+            float w = root.layout.width, h = root.layout.height;
+            if (float.IsNaN(w) || w <= 0 || surfaceWidth <= 0) return new Vector2(pixels.x, surfaceHeight - pixels.y);
+            return new Vector2(pixels.x * w / surfaceWidth, (surfaceHeight - pixels.y) * h / surfaceHeight);
         }
 
         void ClearWorldOverlays()

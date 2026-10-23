@@ -53,15 +53,41 @@ namespace ShardsOfEternity.Game
 
         Vector3 BoardCenter(Battle b) => new Vector3((b.Width - 1) / 2f, 0, -(b.Height - 1) / 2f);
 
-        /// <summary>Distance at which the whole room fits the viewport at the default angle.</summary>
-        float FitDistance(Battle b)
+        const float Margin = 0.03f;
+
+        /// <summary>
+        /// The closest distance at which every corner of the room (with headroom for units standing on it) projects
+        /// inside the camera's viewport, found by bisection. Perspective makes the near edge look wider than the far
+        /// one, so a closed-form fit at the center would crop the front corners.
+        /// </summary>
+        float FitDistance(Battle b, Quaternion rotation, Vector3 focus)
         {
             cam.fieldOfView = 35f;
-            float halfW = b.Width / 2f + 0.3f;
-            float halfH = (b.Height / 2f + 0.3f) * Mathf.Sin(Pitch * Mathf.Deg2Rad) + 0.6f;
-            float tanV = Mathf.Tan(cam.fieldOfView * 0.5f * Mathf.Deg2Rad);
-            float tanH = tanV * Mathf.Max(0.1f, cam.aspect);
-            return Mathf.Max(halfW / tanH, halfH / tanV) + 1f;
+            var corners = new[]
+            {
+                new Vector3(-0.5f, 0, 0.5f), new Vector3(b.Width - 0.5f, 0, 0.5f),
+                new Vector3(-0.5f, 0, -b.Height + 0.5f), new Vector3(b.Width - 0.5f, 0, -b.Height + 0.5f),
+                new Vector3(-0.5f, 1.4f, 0.5f), new Vector3(b.Width - 0.5f, 1.4f, 0.5f),
+            };
+            float near = 2f, far = 400f;
+            for (int i = 0; i < 24; i++)
+            {
+                float mid = (near + far) / 2;
+                cam.transform.SetPositionAndRotation(focus - rotation * Vector3.forward * mid, rotation);
+                bool fits = true;
+                foreach (var c in corners)
+                {
+                    var v = cam.WorldToViewportPoint(c);
+                    if (v.z <= 0 || v.x < Margin || v.x > 1 - Margin || v.y < Margin || v.y > 1 - Margin)
+                    {
+                        fits = false;
+                        break;
+                    }
+                }
+                if (fits) far = mid;
+                else near = mid;
+            }
+            return far;
         }
 
         void Apply(Battle b)
@@ -73,8 +99,10 @@ namespace ShardsOfEternity.Game
             p.z = Mathf.Clamp(p.z, -b.Height / 2f, b.Height / 2f);
             p.y = 0;
             Pan = p;
-            var focus = BoardCenter(b) + Pan;
-            cam.transform.SetPositionAndRotation(focus - rotation * Vector3.forward * FitDistance(b) * Zoom, rotation);
+            var center = BoardCenter(b);
+            float fit = FitDistance(b, rotation, center);
+            var focus = center + Pan;
+            cam.transform.SetPositionAndRotation(focus - rotation * Vector3.forward * fit * Zoom, rotation);
         }
 
         void HandleInput()

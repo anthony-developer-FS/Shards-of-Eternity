@@ -48,6 +48,16 @@ namespace ShardsOfEternity.Game
         {
             var s = new ScrollView(ScrollViewMode.Vertical).With(classes);
             s.horizontalScrollerVisibility = ScrollerVisibility.Hidden;
+            // Inline styles beat the default theme: a thin bar with no arrow buttons.
+            var bar = s.verticalScroller;
+            bar.style.width = 8;
+            bar.lowButton.style.display = DisplayStyle.None;
+            bar.highButton.style.display = DisplayStyle.None;
+            bar.slider.style.marginTop = 0;
+            bar.slider.style.marginBottom = 0;
+            bar.slider.style.width = 8;
+            s.contentContainer.style.paddingBottom = 14;
+            s.contentContainer.style.paddingRight = 6;
             return s;
         }
 

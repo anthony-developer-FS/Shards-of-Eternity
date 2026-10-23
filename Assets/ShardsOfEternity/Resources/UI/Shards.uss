@@ -91,8 +91,9 @@
 .soe .check:hover { background-color: rgba(255, 255, 255, 0.05); border-color: rgba(0, 0, 0, 0); }
 .soe .check-box { width: 18px; height: 18px; border-width: 2px; border-color: var(--muted); border-radius: 4px; margin-right: 10px; flex-shrink: 0; }
 .soe .check--on .check-box { background-color: var(--purple); border-color: var(--purple); }
-.soe .check-mark { width: 6px; height: 6px; margin: 4px; border-radius: 1px; background-color: rgba(0, 0, 0, 0); }
-.soe .check--on .check-mark { background-color: #FFFFFF; }
+/* a check mark: the bottom-right corner of a narrow box, turned 45 degrees */
+.soe .check-mark { width: 5px; height: 9px; margin-left: 4px; margin-top: 0; border-right-width: 2px; border-bottom-width: 2px; border-color: rgba(0, 0, 0, 0); rotate: 45deg; }
+.soe .check--on .check-mark { border-color: #FFFFFF; }
 .soe .seg { flex-direction: row; background-color: var(--panel-2); border-radius: 8px; border-width: 1px; border-color: var(--line); padding: 3px; }
 .soe .seg .btn { margin: 0; border-width: 0; background-color: rgba(0, 0, 0, 0); flex-grow: 1; min-height: 34px; }
 .soe .seg .btn.seg--on { background-color: var(--panel-3); color: var(--gold); -unity-font-style: bold; }
@@ -108,7 +109,8 @@
 .soe .option-panel { flex-grow: 1; flex-basis: 300px; min-width: 280px; margin-right: 10px; margin-bottom: 10px; }
 
 /* scrollbars: a thin dark track, no arrow buttons */
-.soe .unity-scroller--vertical { width: 8px; border-width: 0; background-color: rgba(0, 0, 0, 0); }
+.soe .unity-scroller--vertical { width: 8px; min-width: 8px; border-width: 0; background-color: rgba(0, 0, 0, 0); }
+.soe .unity-scroller--vertical .unity-base-slider__dragger { width: 6px; left: 1px; margin: 0; }
 .soe .unity-scroller--horizontal { height: 8px; border-width: 0; background-color: rgba(0, 0, 0, 0); }
 .soe .unity-scroller__low-button, .soe .unity-scroller__high-button { display: none; }
 .soe .unity-scroller__slider { margin: 0; flex-grow: 1; }
