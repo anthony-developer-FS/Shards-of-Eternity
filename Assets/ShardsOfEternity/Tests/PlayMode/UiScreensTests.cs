@@ -37,9 +37,9 @@ namespace ShardsOfEternity.Tests
             ProfileStore.Folder = null;
             if (Directory.Exists(saveFolder)) Directory.Delete(saveFolder, true);
             if (game != null) Object.Destroy(game);
-            foreach (var cam in Object.FindObjectsByType<Camera>(FindObjectsSortMode.None)) Object.Destroy(cam.gameObject);
-            foreach (var light in Object.FindObjectsByType<Light>(FindObjectsSortMode.None)) Object.Destroy(light.gameObject);
-            foreach (var board in Object.FindObjectsByType<BoardView>(FindObjectsSortMode.None)) Object.Destroy(board.gameObject);
+            foreach (var cam in Object.FindObjectsByType<Camera>()) Object.Destroy(cam.gameObject);
+            foreach (var light in Object.FindObjectsByType<Light>()) Object.Destroy(light.gameObject);
+            foreach (var board in Object.FindObjectsByType<BoardView>()) Object.Destroy(board.gameObject);
             yield return null;
         }
 
@@ -71,6 +71,7 @@ namespace ShardsOfEternity.Tests
             profile.RunsPlayed = 3;
             profile.RunsWon = 1;
             profile.DeepestFloor = 4;
+            profile.EnemiesSlain = 37;
 
             var shooter = new Shooter(hud, controller.Camera, width, height, tag);
             yield return shooter.Take("01-title");
@@ -116,12 +117,16 @@ namespace ShardsOfEternity.Tests
             yield return new WaitForSecondsRealtime(1.5f);
             Assert.AreEqual(2, controller.Run.Floor);
 
+            // Slay a couple of enemies first so the end screen has XP to show.
+            foreach (var e in controller.Battle.Units.Where(u => u.IsEnemy && u.Alive).Take(2).ToList()) controller.Battle.Hurt(e, 999, false);
+            yield return null;
             foreach (var h in controller.Battle.Heroes.ToList()) controller.Battle.Hurt(h, 999, false);
             Assert.AreEqual(BattleOutcome.Defeat, controller.Battle.Outcome);
             yield return shooter.Take("08-game-over");
             Assert.IsNotNull(controller.LastResult, "Losing pays the run out");
             Assert.IsTrue(File.Exists(ProfileStore.FilePath), "and saves it");
             Assert.AreEqual(4, controller.Profile.RunsPlayed);
+            Assert.Greater(controller.LastResult.Xp, 0, "Kills on a lost run still pay XP");
             Assert.AreEqual(controller.Profile.ToJson(), ProfileStore.Load().ToJson(), "What's on disk matches the profile");
 
             hud.AbandonRun();

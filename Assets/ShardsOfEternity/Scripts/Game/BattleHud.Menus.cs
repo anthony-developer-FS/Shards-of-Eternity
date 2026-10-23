@@ -30,8 +30,13 @@ namespace ShardsOfEternity.Game
             Ui.Btn("Quit", Application.Quit, "btn-ghost", "btn-wide").Into(column);
             var p = Controller.Profile;
             if (p.RunsPlayed > 0)
-                Ui.Text($"{p.RunsPlayed} run{(p.RunsPlayed == 1 ? "" : "s")} · {p.RunsWon} won · deepest floor {p.DeepestFloor}", "small", "muted", "center")
-                    .Into(column).style.marginTop = 10;
+            {
+                var summary = Ui.Text($"{p.RunsPlayed} run{(p.RunsPlayed == 1 ? "" : "s")} · {p.RunsWon} won · deepest floor {p.DeepestFloor}", "small", "muted")
+                    .Into(column);
+                summary.style.marginTop = 10;
+                summary.style.alignSelf = Align.Stretch;
+                summary.style.unityTextAlign = TextAnchor.MiddleCenter;
+            }
             Ui.Text("Combat prototype", "tiny", "footer").Into(screen);
         }
 
@@ -312,7 +317,7 @@ namespace ShardsOfEternity.Game
                     var def = Roster.Hero(h.Id);
                     var row = Ui.Row().Into(modal);
                     row.style.alignItems = Align.Center;
-                    row.style.marginBottom = 4;
+                    row.style.marginBottom = 9;
                     var name = Ui.Text(def.Name, "small").Into(row);
                     name.style.width = 70;
                     name.style.color = Palette.ForUnit(new Unit(-1, def, default));

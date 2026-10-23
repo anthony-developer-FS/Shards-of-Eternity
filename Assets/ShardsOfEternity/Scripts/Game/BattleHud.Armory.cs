@@ -51,12 +51,10 @@ namespace ShardsOfEternity.Game
             var hero = heroes[armoryHero];
             var progress = profile.Hero(hero.Id);
             var loadout = profile.LoadoutFor(hero.Id);
-            var levelRow = Ui.Row().Into(modal);
-            levelRow.style.alignItems = Align.Center;
-            Ui.Text($"{hero.Name}, level {progress.Level} {hero.HeroClass}", "small").Into(levelRow).style.unityFontStyleAndWeight = FontStyle.Bold;
-            var bar = XpBar(progress).Into(levelRow);
-            bar.style.flexGrow = 1;
-            bar.style.marginLeft = 10;
+            Ui.Text($"{hero.Name}, level {progress.Level} {hero.HeroClass}", "small").Into(modal).style.unityFontStyleAndWeight = FontStyle.Bold;
+            var bar = XpBar(progress).Into(modal);
+            bar.style.marginTop = 2;
+            bar.style.marginBottom = 4;
             Ui.Text($"Level bonus: {Progression.BonusText(progress.Level)}. With gear: {StatsText(PreviewHero(hero, progress.Level, loadout))}",
                 "tiny").Into(modal);
 
@@ -125,6 +123,8 @@ namespace ShardsOfEternity.Game
                 Ui.Text(StatLine(item), "small").Into(text);
                 Ui.Text(Compare(item, loadout.WouldReplace(item)), "tiny").Into(text);
                 var buttons = Ui.Box().Into(card);
+                buttons.style.flexShrink = 0;
+                buttons.style.minWidth = 76;
                 Ui.Btn("Equip", () => { equip(item); modalDirty = true; RebuildMenu(); }, "btn-small").Into(buttons);
                 if (discard != null)
                     Ui.Btn(confirmDiscard == item ? "Sure?" : "Discard", () => discard(item), "btn-small", "btn-ghost").Into(buttons);
