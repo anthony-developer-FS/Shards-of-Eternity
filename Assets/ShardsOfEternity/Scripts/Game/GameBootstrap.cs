@@ -25,8 +25,10 @@ namespace ShardsOfEternity.Game
         [Tooltip("With action shards, keep unspent shards for later turns, up to 4.")]
         public bool bankShards;
 
-        [Tooltip("Seconds of unpaused play between reinforcement waves once a room is awake.")]
-        public float reinforcementInterval = 120f;
+        [Tooltip("Seconds of unpaused play before each reinforcement wave on a floor, once the room is awake. The last entry repeats.")]
+        public float[] reinforcementDelays = { 600f, 300f, 120f };
+        [Tooltip("Testing aid: a wave every 2 minutes from the start, ignoring the schedule above.")]
+        public bool fastTestTimer;
 
         [Tooltip("Room and crit seed. 0 picks a random one each time.")]
         public int seed;
@@ -67,7 +69,8 @@ namespace ShardsOfEternity.Game
             controller.HandmadeFirstFloor = handmadeFirstFloor;
             controller.UseActionShards = useActionShards;
             controller.BankShards = bankShards;
-            controller.ReinforcementInterval = reinforcementInterval;
+            controller.ReinforcementDelays = reinforcementDelays;
+            controller.FastTestTimer = fastTestTimer;
             controller.Seed = seed;
             controller.NewRun();
         }

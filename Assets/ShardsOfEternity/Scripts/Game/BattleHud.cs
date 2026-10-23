@@ -272,6 +272,7 @@ namespace ShardsOfEternity.Game
             GUI.enabled = Controller.UseActionShards;
             Controller.BankShards = GUILayout.Toggle(Controller.BankShards, "     Bank unspent shards, up to 4");
             GUI.enabled = true;
+            Controller.FastTestTimer = GUILayout.Toggle(Controller.FastTestTimer, " Fast 2-min timer (testing): skip the 10 and 5 minute waits");
             GUI.enabled = Controller.SquadReady;
             if (GUILayout.Button("<b>Enter the rift</b>", button, GUILayout.MinHeight(44))) deferred = Controller.NewRun;
             GUI.enabled = true;

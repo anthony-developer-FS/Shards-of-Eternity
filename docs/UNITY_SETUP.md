@@ -27,7 +27,7 @@ The Unity project lives at the root of this repository (`Assets/`, `Packages/`, 
 
 A run is a descent through several floors: a **dungeon** has 3 or 4, a **raid** has 12. Each floor is a generated room. When every enemy is dead the rift door turns green; walk any hero onto it and the next floor loads. Health, deaths and ultimate charge carry over between floors. The last floor holds the **Rift Lord**, a boss who hits every hero next to him, and killing him wins the run.
 
-Once a room wakes, **reinforcements** arrive every 2 minutes of real time. The countdown is at the top right; **Pause** (or P) stops it. Rift pressure still rises with the turn timeline, but now only shifts the walls.
+Once a room wakes, **reinforcements** arrive on a real-time timer: the first wave after 10 minutes, the second 5 minutes later, then one every 2 minutes. The timer restarts at 10 minutes on each new floor. For quick testing, turn on **Fast 2-min timer** on the squad screen. The countdown is at the top right; **Pause** (or P) stops it. Rift pressure still rises with the turn timeline, but now only shifts the walls.
 
 **Loot.** Slain enemies can drop gear onto their tile, marked by a beam of light in the item's rarity color: white for Common, blue for Magic, yellow for Rare and orange for Legendary. Better items get taller beams, and Rare and Legendary ones light up the floor around them. Walk a hero over the tile to pick the items up. Anything still on the floor when you take the exit is left behind. The boss always drops two Rare or better items. Deeper floors drop better rarities and bigger stats.
 
@@ -47,11 +47,11 @@ Once a room wakes, **reinforcements** arrive every 2 minutes of real time. The c
 
 The side panel shows the current hero, abilities, the exact outcome before you commit, rift pressure and the log. The bar at the top is the turn timeline. **New run** starts over; **Change squad / rules** goes back to the squad screen, where you pick 4 of the 6 classes, dungeon or raid, and the action shard options.
 
-You can also select the **Shards of Eternity** object in the scene and set the squad, run type, a fixed seed, the shard rules or the reinforcement interval from the Inspector.
+You can also select the **Shards of Eternity** object in the scene and set the squad, run type, a fixed seed, the shard rules or the reinforcement schedule from the Inspector.
 
 ## 5. Run the tests
 
-Open **Window > General > Test Runner**, choose **EditMode**, and press **Run All**. There are 42 tests covering body blocking, turn order, damage, abilities, enemy turns, room generation, floors and the boss, action shards, loot and gear, and simulated battles and whole runs.
+Open **Window > General > Test Runner**, choose **EditMode**, and press **Run All**. There are 43 tests covering body blocking, turn order, damage, abilities, enemy turns, room generation, floors and the boss, action shards, loot and gear, and simulated battles and whole runs.
 
 ## 6. Commit the files Unity generates
 

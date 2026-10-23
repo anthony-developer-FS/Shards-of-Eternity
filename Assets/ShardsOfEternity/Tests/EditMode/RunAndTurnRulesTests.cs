@@ -65,6 +65,18 @@ namespace ShardsOfEternity.Tests
         }
 
         [Test]
+        public void ReinforcementSchedule_GoesTenThenFiveThenEveryTwoMinutes()
+        {
+            var schedule = new ReinforcementSchedule(ReinforcementSchedule.DefaultDelays);
+            Assert.AreEqual(600f, schedule.SecondsBefore(0));
+            Assert.AreEqual(300f, schedule.SecondsBefore(1));
+            Assert.AreEqual(120f, schedule.SecondsBefore(2));
+            Assert.AreEqual(120f, schedule.SecondsBefore(7), "The last delay repeats");
+            Assert.AreEqual(600f, new ReinforcementSchedule().SecondsBefore(0), "No delays falls back to the default");
+            Assert.AreEqual(600f, new ReinforcementSchedule(30f, 0f).SecondsBefore(0), "A zero delay falls back to the default");
+        }
+
+        [Test]
         public void ActionShards_AllowMovingTwice()
         {
             var b = Arena(true, "##########", "#........#", "##########");

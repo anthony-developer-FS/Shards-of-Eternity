@@ -34,8 +34,16 @@ namespace ShardsOfEternity.Game
         public bool UseActionShards;
         /// <summary>With action shards, unspent shards carry over to later turns, up to 4.</summary>
         public bool BankShards;
-        /// <summary>Seconds of unpaused play between reinforcement waves once a room is awake.</summary>
-        public float ReinforcementInterval = 120f;
+        /// <summary>
+        /// Seconds of unpaused play before each reinforcement wave on a floor, once the room is awake.
+        /// The last entry repeats: 10 minutes, then 5, then every 2 by default.
+        /// </summary>
+        public float[] ReinforcementDelays = (float[])ReinforcementSchedule.DefaultDelays.Clone();
+        /// <summary>Testing aid: a wave every 2 minutes from the start, ignoring the schedule.</summary>
+        public bool FastTestTimer;
+
+        float NextReinforcementDelay() =>
+            FastTestTimer ? 120f : new ReinforcementSchedule(ReinforcementDelays).SecondsBefore(Battle.WavesCalled);
 
         public DungeonRun Run { get; private set; }
         public Battle Battle => Run?.Battle;
@@ -79,7 +87,7 @@ namespace ShardsOfEternity.Game
             AbilityIndex = -1;
             Pending = null;
             Hover = null;
-            ReinforcementCountdown = ReinforcementInterval;
+            ReinforcementCountdown = NextReinforcementDelay();
             StartCoroutine(Advance());
         }
 
@@ -137,8 +145,9 @@ namespace ShardsOfEternity.Game
         IEnumerator CallReinforcementsIfDue()
         {
             if (ReinforcementCountdown > 0 || !Battle.ReinforcementsActive) yield break;
-            ReinforcementCountdown = ReinforcementInterval;
             Battle.CallReinforcements();
+            // WavesCalled has moved on, so this picks the gap before the next wave.
+            ReinforcementCountdown = NextReinforcementDelay();
             yield return PlayEvents();
         }
 
