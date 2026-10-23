@@ -25,8 +25,18 @@ namespace ShardsOfEternity.Game
             Ui.Text("SHARDS OF ETERNITY", "title-xl").Into(column);
             Ui.Text("Lead four heroes down through the rift. Seal it before it swallows the world.", "tagline").Into(column);
             Ui.Btn("New run", ShowSquad, "btn-primary", "btn-wide").Into(column);
+            Ui.Btn("Armory", ShowArmory, "btn-wide").Into(column);
             Ui.Btn("Settings", () => OpenSettings(true), "btn-wide").Into(column);
             Ui.Btn("Quit", Application.Quit, "btn-ghost", "btn-wide").Into(column);
+            var p = Controller.Profile;
+            if (p.RunsPlayed > 0)
+            {
+                var summary = Ui.Text($"{p.RunsPlayed} run{(p.RunsPlayed == 1 ? "" : "s")} · {p.RunsWon} won · deepest floor {p.DeepestFloor}", "small", "muted")
+                    .Into(column);
+                summary.style.marginTop = 10;
+                summary.style.alignSelf = Align.Stretch;
+                summary.style.unityTextAlign = TextAnchor.MiddleCenter;
+            }
             Ui.Text("Combat prototype", "tiny", "footer").Into(screen);
         }
 
@@ -119,10 +129,13 @@ namespace ShardsOfEternity.Game
             var top = Ui.Row().Into(inner);
             var names = Ui.Box("grow").Into(top);
             Ui.Text(def.Name, "h2").Into(names);
-            Ui.Text(def.HeroClass.ToString(), "small", "muted").Into(names);
+            var progress = Controller.Profile.Hero(def.Id);
+            Ui.Text($"Level {progress.Level} {def.HeroClass}", "small", "muted").Into(names);
             if (slot >= 0) Ui.Text((slot + 1).ToString(), "badge").Into(top);
+            XpBar(progress).Into(inner).style.marginTop = 4;
+            var u = PreviewHero(def, progress.Level, Controller.Profile.LoadoutFor(def.Id));
             var stats = Ui.Box("stat-row").Into(inner);
-            foreach (var s in new[] { $"HP {def.Hp}", $"DMG {def.Damage}", $"ARM {def.Armor}", $"SPD {def.Speed}", $"MOV {def.Move}", $"RNG {def.Range}" })
+            foreach (var s in new[] { $"HP {u.MaxHp}", $"DMG {u.Damage}", $"ARM {u.Armor}", $"SPD {u.Speed}", $"MOV {u.Move}", $"RNG {u.Range}" })
                 Ui.Text(s, "stat").Into(stats);
             Ui.Text(def.Rule, "small", "muted").Into(inner);
             var abilities = AbilityLibrary.For(def.HeroClass);
@@ -158,6 +171,26 @@ namespace ShardsOfEternity.Game
             Ui.Text("DISPLAY", "h3").Into(c);
             Ui.Check("Health bars and status tags over units", ShowUnitBars, v => { SetShowUnitBars(v); RefreshSettings(); }).Into(c);
 
+            if (CurrentMenu != Menu.None)
+            {
+                Ui.Text("PROGRESS", "h3").Into(c);
+                Ui.Text($"Hero levels, gear and run stats are saved on this device and kept between sessions.", "small", "muted").Into(c);
+                var reset = Ui.Btn(confirmReset ? "Click again to erase every level and item" : "Reset progress", () =>
+                {
+                    if (!confirmReset)
+                    {
+                        confirmReset = true;
+                        RefreshSettings();
+                        return;
+                    }
+                    confirmReset = false;
+                    Controller.ResetProgress();
+                    RefreshSettings();
+                }, "btn-danger").Into(c);
+                reset.style.alignSelf = Align.FlexStart;
+                reset.style.marginTop = 6;
+            }
+
             Ui.Text("CONTROLS", "h3").Into(c);
             foreach (var (key, what) in new[]
             {
@@ -178,8 +211,10 @@ namespace ShardsOfEternity.Game
             }
 
             var actions = Ui.Box("modal-actions").Into(c);
-            Ui.Btn("Back", () => OpenSettings(false), "btn-primary").Into(actions).style.minWidth = 160;
+            Ui.Btn("Back", () => { confirmReset = false; OpenSettings(false); }, "btn-primary").Into(actions).style.minWidth = 160;
         }
+
+        bool confirmReset;
 
         void RefreshSettings()
         {
@@ -257,9 +292,9 @@ namespace ShardsOfEternity.Game
         {
             bool win = Battle.Outcome == BattleOutcome.Victory;
             var run = Controller.Run;
-            run.CollectLoot();
+            var result = Controller.FinishRun();
             var modal = Ui.Box("panel", "modal").Into(scrim);
-            modal.style.width = 440;
+            modal.style.width = 480;
             var title = Ui.Text(win ? "Rift sealed" : "Squad defeated", "h1").Into(modal);
             title.style.color = win ? Palette.Crit : Palette.AttackTarget;
             Ui.Text(win
@@ -268,6 +303,34 @@ namespace ShardsOfEternity.Game
             var best = run.Found.OrderByDescending(i => i.Rarity).ThenByDescending(i => i.ItemLevel).FirstOrDefault();
             Ui.Text($"Loot found: {run.Found.Count} item{(run.Found.Count == 1 ? "" : "s")}" +
                 (best != null ? $". Best: {RarityName(best)}" : "."), "body", "muted").Into(modal).style.marginTop = 8;
+            if (result != null)
+            {
+                if (result.Lost.Count > 0)
+                    Ui.Text($"Kept {result.Kept.Count}: gear the heroes had on. Lost {result.Lost.Count} left in the stash when the squad fell.",
+                        "small", "muted").Into(modal);
+                else if (result.Kept.Count > 0)
+                    Ui.Text($"All {result.Kept.Count} finds are yours: equipped, or waiting in the Armory.", "small", "muted").Into(modal);
+
+                Ui.Text($"+{result.Xp} XP FOR EACH HERO", "h3").Into(modal).style.color = Palette.Xp;
+                foreach (var h in result.Heroes)
+                {
+                    var def = Roster.Hero(h.Id);
+                    var row = Ui.Row().Into(modal);
+                    row.style.alignItems = Align.Center;
+                    row.style.marginBottom = 9;
+                    var name = Ui.Text(def.Name, "small").Into(row);
+                    name.style.width = 70;
+                    name.style.color = Palette.ForUnit(new Unit(-1, def, default));
+                    var level = Ui.Text(h.LeveledUp ? $"Level {h.LevelBefore} to {h.LevelAfter}" : $"Level {h.LevelAfter}", "small").Into(row);
+                    level.style.width = 110;
+                    if (h.LeveledUp)
+                    {
+                        level.style.color = Palette.Crit;
+                        level.style.unityFontStyleAndWeight = FontStyle.Bold;
+                    }
+                    XpBar(Controller.Profile.Hero(h.Id)).Into(row).style.flexGrow = 1;
+                }
+            }
             var actions = Ui.Box("modal-actions").Into(modal);
             Ui.Btn("New run", StartRun, "btn-primary").Into(actions).style.flexGrow = 1;
             Ui.Btn("Change squad", () => { Controller.EndRun(); ClearWorldOverlays(); ShowSquad(); }).Into(actions).style.flexGrow = 1;
@@ -302,52 +365,12 @@ namespace ShardsOfEternity.Game
             var hero = heroes[campHero];
             string id = hero.Def.Id;
             var loadout = run.LoadoutFor(id);
-            var preview = new Unit(-1, hero.Def, default);
-            Gear.ApplyTo(preview, loadout);
-            Ui.Text($"Next floor: Damage {preview.Damage} · Armor {preview.Armor} · Health {preview.MaxHp} · Speed {preview.Speed} · " +
-                $"Move {preview.Move} · Crit {Mathf.RoundToInt((float)preview.Crit * 100)}% +{Mathf.RoundToInt((float)preview.CritDamage * 100)}%", "small").Into(modal);
+            var preview = PreviewHero(hero.Def, run.LevelOf(id), loadout);
+            Ui.Text($"Level {preview.Level} · next floor: {StatsText(preview)}", "small").Into(modal);
 
-            var columns = Ui.Box("columns").Into(modal);
-            columns.style.marginTop = 8;
-            bool narrow = root.layout.width < 760;
-            columns.style.flexDirection = narrow ? FlexDirection.Column : FlexDirection.Row;
-
-            var equipped = Ui.Box("column").Into(columns);
-            Ui.Text("EQUIPPED", "h3").Into(equipped);
-            var equippedScroll = Ui.VScroll("grow").Into(equipped);
-            foreach (GearSlot slot in System.Enum.GetValues(typeof(GearSlot)))
-            {
-                var item = loadout[slot];
-                var row = Ui.Box("slot-row").Into(equippedScroll.contentContainer);
-                Ui.Text(Gear.SlotName(slot), "slot-name").Into(row);
-                if (item == null)
-                {
-                    Ui.Text("empty", "tiny").Into(row);
-                    continue;
-                }
-                var text = Ui.Box("grow").Into(row);
-                Ui.Text(RarityName(item), "small").Into(text);
-                Ui.Text(StatLine(item), "tiny").Into(text);
-                var s = slot;
-                Ui.Btn("Remove", () => { run.Unequip(id, s); modalDirty = true; }, "btn-small", "btn-ghost").Into(row);
-            }
-
-            var stash = Ui.Box("column").Into(columns);
-            Ui.Text($"STASH ({run.Stash.Count})", "h3").Into(stash);
-            var stashScroll = Ui.VScroll("grow").Into(stash);
-            if (run.Stash.Count == 0)
-                Ui.Text("Nothing here yet. Kill enemies and walk over their loot beams to pick items up.", "small", "muted").Into(stashScroll.contentContainer);
-            foreach (var item in run.Stash.OrderByDescending(i => i.Rarity).ThenBy(i => i.Slot).ToList())
-            {
-                var card = Ui.Box("card", "row").Into(stashScroll.contentContainer);
-                Ui.Box("item-rarity").Into(card).style.backgroundColor = Palette.ForRarity(item.Rarity);
-                var text = Ui.Box("grow").Into(card);
-                Ui.Text(RarityName(item), "small").Into(text).style.unityFontStyleAndWeight = FontStyle.Bold;
-                Ui.Text($"{item.Rarity} {Gear.SlotName(item.Slot)} · level {item.ItemLevel}", "tiny").Into(text);
-                Ui.Text(StatLine(item), "small").Into(text);
-                Ui.Text(Compare(item, loadout.WouldReplace(item)), "tiny").Into(text);
-                Ui.Btn("Equip", () => { run.Equip(id, item); modalDirty = true; }, "btn-small").Into(card);
-            }
+            GearColumns(modal, loadout, run.Stash, "STASH",
+                "Nothing here yet. Kill enemies and walk over their loot beams to pick items up.",
+                item => run.Equip(id, item), slot => run.Unequip(id, slot), null);
 
             var actions = Ui.Box("modal-actions").Into(modal);
             var next = run.Floor + 1;

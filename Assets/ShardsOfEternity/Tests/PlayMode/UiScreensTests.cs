@@ -19,15 +19,27 @@ namespace ShardsOfEternity.Tests
     public class UiScreensTests
     {
         GameObject game;
+        string saveFolder;
+
+        [UnitySetUp]
+        public IEnumerator SetUp()
+        {
+            // Never touch the player's real save.
+            saveFolder = Path.Combine(Path.GetTempPath(), "soe-test-" + Guid.NewGuid().ToString("N"));
+            ProfileStore.Folder = saveFolder;
+            yield return null;
+        }
 
         [UnityTearDown]
         public IEnumerator TearDown()
         {
             Time.timeScale = 1;
+            ProfileStore.Folder = null;
+            if (Directory.Exists(saveFolder)) Directory.Delete(saveFolder, true);
             if (game != null) Object.Destroy(game);
-            foreach (var cam in Object.FindObjectsByType<Camera>(FindObjectsSortMode.None)) Object.Destroy(cam.gameObject);
-            foreach (var light in Object.FindObjectsByType<Light>(FindObjectsSortMode.None)) Object.Destroy(light.gameObject);
-            foreach (var board in Object.FindObjectsByType<BoardView>(FindObjectsSortMode.None)) Object.Destroy(board.gameObject);
+            foreach (var cam in Object.FindObjectsByType<Camera>()) Object.Destroy(cam.gameObject);
+            foreach (var light in Object.FindObjectsByType<Light>()) Object.Destroy(light.gameObject);
+            foreach (var board in Object.FindObjectsByType<BoardView>()) Object.Destroy(board.gameObject);
             yield return null;
         }
 
@@ -48,8 +60,26 @@ namespace ShardsOfEternity.Tests
             Assert.IsNotNull(hud, "The bootstrap adds the UI");
             Assert.AreEqual(BattleHud.Menu.Title, hud.CurrentMenu, "The game opens on the title screen");
 
+            // A profile with some history: levels, gear on Kael and a few spares in the vault.
+            var profile = controller.Profile;
+            profile.Hero("kael").AddXp(450);
+            profile.Hero("sera").AddXp(120);
+            var loot = new System.Random(8);
+            for (int i = 0; i < 5; i++) profile.Vault.Add(LootTable.RollItem(loot, 3, (Rarity)(i % 4)));
+            profile.Equip("kael", profile.Vault[1]);
+            profile.Equip("kael", profile.Vault[2]);
+            profile.RunsPlayed = 3;
+            profile.RunsWon = 1;
+            profile.DeepestFloor = 4;
+            profile.EnemiesSlain = 37;
+
             var shooter = new Shooter(hud, controller.Camera, width, height, tag);
             yield return shooter.Take("01-title");
+
+            hud.ShowArmory();
+            Assert.AreEqual(BattleHud.Menu.Armory, hud.CurrentMenu);
+            yield return shooter.Take("01b-armory");
+            hud.ShowTitle();
 
             hud.OpenSettings(true);
             yield return shooter.Take("02-title-settings");
@@ -87,9 +117,17 @@ namespace ShardsOfEternity.Tests
             yield return new WaitForSecondsRealtime(1.5f);
             Assert.AreEqual(2, controller.Run.Floor);
 
+            // Slay a couple of enemies first so the end screen has XP to show.
+            foreach (var e in controller.Battle.Units.Where(u => u.IsEnemy && u.Alive).Take(2).ToList()) controller.Battle.Hurt(e, 999, false);
+            yield return null;
             foreach (var h in controller.Battle.Heroes.ToList()) controller.Battle.Hurt(h, 999, false);
             Assert.AreEqual(BattleOutcome.Defeat, controller.Battle.Outcome);
             yield return shooter.Take("08-game-over");
+            Assert.IsNotNull(controller.LastResult, "Losing pays the run out");
+            Assert.IsTrue(File.Exists(ProfileStore.FilePath), "and saves it");
+            Assert.AreEqual(4, controller.Profile.RunsPlayed);
+            Assert.Greater(controller.LastResult.Xp, 0, "Kills on a lost run still pay XP");
+            Assert.AreEqual(controller.Profile.ToJson(), ProfileStore.Load().ToJson(), "What's on disk matches the profile");
 
             hud.AbandonRun();
             Assert.AreEqual(BattleHud.Menu.Title, hud.CurrentMenu);

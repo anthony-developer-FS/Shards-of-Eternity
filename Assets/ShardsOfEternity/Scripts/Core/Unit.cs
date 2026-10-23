@@ -15,6 +15,8 @@ namespace ShardsOfEternity.Core
         public int Range;
         public double Crit;
         public double CritDamage;
+        /// <summary>A hero's level from the profile. Enemies stay at 1.</summary>
+        public int Level = 1;
 
         public int X;
         public int Y;
