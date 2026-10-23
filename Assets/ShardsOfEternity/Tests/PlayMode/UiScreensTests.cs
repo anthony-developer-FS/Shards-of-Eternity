@@ -40,6 +40,7 @@ namespace ShardsOfEternity.Tests
             foreach (var cam in Object.FindObjectsByType<Camera>()) Object.Destroy(cam.gameObject);
             foreach (var light in Object.FindObjectsByType<Light>()) Object.Destroy(light.gameObject);
             foreach (var board in Object.FindObjectsByType<BoardView>()) Object.Destroy(board.gameObject);
+            foreach (var atmosphere in Object.FindObjectsByType<Atmosphere>()) Object.Destroy(atmosphere.gameObject);
             yield return null;
         }
 

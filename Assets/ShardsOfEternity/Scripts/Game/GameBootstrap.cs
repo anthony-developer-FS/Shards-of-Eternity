@@ -6,7 +6,8 @@ namespace ShardsOfEternity.Game
 {
     /// <summary>
     /// Entry point for the combat prototype. Put it on one GameObject in an otherwise empty scene and press Play:
-    /// it creates the camera, light, board, battle loop, camera rig and UI at runtime, so no prefabs or art are needed yet.
+    /// it creates the camera, light, atmosphere, music, board, battle loop, camera rig and UI at runtime. The models and
+    /// music it uses are generated from code (Tools/ArtGen, Tools/MusicGen) and loaded from Resources, so there are no prefabs.
     /// The game opens on the title screen.
     /// </summary>
     public sealed class GameBootstrap : MonoBehaviour
@@ -50,16 +51,23 @@ namespace ShardsOfEternity.Game
             cam.clearFlags = CameraClearFlags.SolidColor;
             cam.backgroundColor = Palette.Hex(0x0E0F14);
 
-            if (FindAnyObjectByType<Light>() == null)
+            var light = FindAnyObjectByType<Light>();
+            if (light == null || light.type != LightType.Directional)
             {
-                var light = new GameObject("Directional Light").AddComponent<Light>();
+                light = new GameObject("Directional Light").AddComponent<Light>();
                 light.type = LightType.Directional;
                 light.transform.rotation = Quaternion.Euler(55, -30, 0);
                 light.intensity = 1.1f;
             }
             RenderSettings.ambientLight = new Color(.45f, .45f, .5f);
 
+            // Sun, sky, fog and backdrop for each theme, and the hero showcase behind the menus.
+            var atmosphere = new GameObject("Atmosphere").AddComponent<Atmosphere>();
+            atmosphere.Sun = light;
+            gameObject.AddComponent<MusicPlayer>();
+
             var board = new GameObject("Board").AddComponent<BoardView>();
+            board.Atmosphere = atmosphere;
             var controller = gameObject.AddComponent<BattleController>();
             var hud = gameObject.AddComponent<BattleHud>();
             var rig = cam.GetComponent<CameraRig>();
@@ -81,6 +89,7 @@ namespace ShardsOfEternity.Game
             controller.FastTestTimer = fastTestTimer;
             controller.Seed = seed;
             hud.EnsureBuilt();
+            atmosphere.ShowMenu();
             if (skipTitle) hud.StartRun();
         }
     }

@@ -20,3 +20,5 @@
 *.mp3  binary
 *.ogg  binary
 *.ttf  binary
+*.bytes binary
+*.shader text eol=lf

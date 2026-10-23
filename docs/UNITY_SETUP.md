@@ -50,6 +50,8 @@ Deeper floors are harder: enemies gain 8% Health per floor and +1 Damage every 3
 
 Between runs, open the **Armory** from the title screen to see each hero's level and stats, swap gear from the vault, and discard what you don't need (click Discard twice). **Settings > Reset progress** on the title screen wipes every level, item and stat. The save is `profile.json` in Unity's persistent data folder (on a Mac, `~/Library/Application Support/DefaultCompany/Shards-of-Eternity`). The PlayMode tests use a temporary folder, so they never touch your save.
 
+**Art and music.** Every hero and enemy is a painted miniature on a round base, and each theme has its own floor, walls, pillars and lights over a floating island of rock. Walls between the camera and the floor drop to stubs so they never hide a unit, from any camera angle. Fallen heroes are knocked over and turn grey. Sleeping enemies are drawn darker until the room wakes. Each theme, the boss floor and camp have their own music, and the title screen shows the seven heroes behind the menu. **Settings > Music** sets the volume. All of it is generated from code in `Tools/` (see [Tools/README.md](../Tools/README.md)).
+
 **Action shards** are an experimental option on the squad screen. Each hero gets 2 shards per turn and every move, attack or ability costs 1, so you can move twice, attack twice, or do one of each. With **Bank unspent shards** on, shards you don't spend carry over, up to 4.
 
 | Action | Mouse and keyboard | Touch |
@@ -75,7 +77,7 @@ You can also select the **Shards of Eternity** object in the scene and set the s
 
 Open **Window > General > Test Runner**, choose **EditMode**, and press **Run All**. There are 71 tests covering levels, XP and saving, body blocking, the Priest and revives, enemy behaviors, themes and floor scaling, turn order, damage, abilities, enemy turns, room generation, floors and the boss, action shards, loot and gear, and simulated battles and whole runs.
 
-The **PlayMode** tab has 2 more tests that play through every screen (title, Armory, squad, battle, pause, settings, camp, end of run) in landscape and portrait. They save a screenshot of each to `Logs/Screenshots` in the project folder.
+The **PlayMode** tab has 7 tests that check every model and music track loads and fits, and 2 more that play through every screen (title, Armory, squad, battle, pause, settings, camp, end of run) in landscape and portrait. They save a screenshot of each to `Logs/Screenshots` in the project folder.
 
 ## 6. Commit the files Unity generates
 
@@ -100,6 +102,7 @@ Never commit `Library/`, `Temp/`, `Logs/` or `UserSettings/`. The `.gitignore` a
 | `Assets/ShardsOfEternity/Scripts/Core` | The game rules in plain C# with no Unity dependency: board, pathing, body blocking, turn timeline, damage, all 28 abilities, enemy AI, rift pressure, the room generator, the themes, and the profile with levels, XP and the save format. |
 | `Assets/ShardsOfEternity/Scripts/Game` | The Unity side: `GameBootstrap` builds the scene, `BoardView` draws and animates, `BattleController` runs the turn loop and input, `CameraRig` moves the camera, `ProfileStore` reads and writes the save, and `BattleHud` is the UI (built with UI Toolkit in code). |
 | `Assets/ShardsOfEternity/Resources/UI` | `Shards.uss`, the style sheet for the whole UI: colors, panels, buttons, cards. Edit it to restyle the game. |
+| `Assets/ShardsOfEternity/Resources/Models`, `Music`, `Shaders` | The generated models and music, and the shaders that draw them. `ModelLibrary` loads the models, `Atmosphere` sets the sky, light and fog per theme, and `MusicPlayer` plays the tracks. |
 | `Assets/ShardsOfEternity/Editor` | Creates the prototype scene and the menu item. |
 | `Assets/ShardsOfEternity/Tests/EditMode` | Unit tests for the rules. |
 | `Assets/ShardsOfEternity/Tests/PlayMode` | Plays through every screen in landscape and portrait and saves screenshots to `Logs/Screenshots`. |

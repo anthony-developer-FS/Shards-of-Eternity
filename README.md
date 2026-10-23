@@ -10,12 +10,15 @@ Target platforms: PC and mobile first, VR later. Engine: Unity.
 | --- | --- |
 | `Assets/`, `Packages/`, `ProjectSettings/` | The Unity 6 project: the combat prototype ported to Unity. See [docs/UNITY_SETUP.md](docs/UNITY_SETUP.md) to open and play it. |
 | `Assets/ShardsOfEternity/Scripts/Core` | Game rules in plain C#, with unit tests. |
+| `Tools/` | The generators for every 3D model and music track in the game, all made from code. See [Tools/README.md](Tools/README.md). |
 | `prototype/index.html` | Playable browser prototype of one combat room. Open it in any browser. |
 | `.gitignore`, `.gitattributes` | Unity ignore rules and line-ending and merge settings. |
 
 ## The Unity prototype
 
 Open the repository folder in Unity Hub with Unity 6.6 (6000.6.7f1) and press Play. The first open creates the prototype scene for you. Full steps, controls and troubleshooting are in [docs/UNITY_SETUP.md](docs/UNITY_SETUP.md).
+
+The board is drawn as a tabletop of painted miniatures on a broken island floating over the rift: four themed tile sets, lighting, fog and a sky split between heaven and hell, with original music for the menus, each theme, the boss and camp.
 
 Runs are 3-4 floor dungeons or 12 floor raids of generated rooms, ending with a boss. Reinforcements arrive on a timer (10 minutes, then 5, then every 2), and action shards are available as an experimental turn rule. Heroes level up from every run, and their levels and gear are saved between sessions.
 
