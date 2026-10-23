@@ -61,7 +61,7 @@ namespace ShardsOfEternity.Game
                 BuildSettings(screen);
                 return;
             }
-            var scroll = new ScrollView(ScrollViewMode.Vertical).With("screen-scroll").Into(screen);
+            var scroll = Ui.VScroll("screen-scroll").Into(screen);
             var body = Ui.Box("squad-body").Into(scroll.contentContainer);
 
             var header = Ui.Row("wrap").Into(body);
@@ -73,15 +73,9 @@ namespace ShardsOfEternity.Game
             grid.style.marginTop = 12;
             foreach (var def in Roster.Heroes) HeroCard(def).Into(grid);
 
-            var options = Ui.Box("row", "wrap").Into(body);
-            options.style.alignItems = Align.FlexStart;
-            options.style.marginTop = 14;
+            var options = Ui.Box("options").Into(body);
 
-            var runBox = Ui.Box("panel").Into(options);
-            runBox.style.flexGrow = 1;
-            runBox.style.minWidth = 300;
-            runBox.style.marginRight = 10;
-            runBox.style.marginBottom = 10;
+            var runBox = Ui.Box("panel", "option-panel").Into(options);
             Ui.Text("RUN", "h3").Into(runBox);
             var seg = Ui.Box("seg").Into(runBox);
             Segment(seg, "Dungeon · 3-4 floors", Controller.RunKind == RunKind.Dungeon, () => Controller.RunKind = RunKind.Dungeon);
@@ -90,10 +84,7 @@ namespace ShardsOfEternity.Game
                 ? "A long descent through every rift theme, 3 floors each. Enemies get tougher as you go."
                 : "A short descent in one rift theme. The Rift Lord waits on the last floor.", "small", "muted").Into(runBox).style.marginTop = 8;
 
-            var rules = Ui.Box("panel").Into(options);
-            rules.style.flexGrow = 1;
-            rules.style.minWidth = 300;
-            rules.style.marginBottom = 10;
+            var rules = Ui.Box("panel", "option-panel").Into(options);
             Ui.Text("RULES", "h3").Into(rules);
             Ui.Check("Action shards (experimental): 2 per turn, spend them on any mix of moves and actions", Controller.UseActionShards,
                 v => { Controller.UseActionShards = v; BuildSquad(); }).Into(rules);
@@ -153,7 +144,7 @@ namespace ShardsOfEternity.Game
             if (scrim != parent) scrim.pickingMode = PickingMode.Position;
             var modal = Ui.Box("panel", "modal").Into(scrim);
             modal.style.width = 560;
-            var scroll = new ScrollView(ScrollViewMode.Vertical).Into(modal);
+            var scroll = Ui.VScroll().Into(modal);
             var c = scroll.contentContainer;
             Ui.Text("Settings", "h1").Into(c);
 
@@ -323,7 +314,7 @@ namespace ShardsOfEternity.Game
 
             var equipped = Ui.Box("column").Into(columns);
             Ui.Text("EQUIPPED", "h3").Into(equipped);
-            var equippedScroll = new ScrollView(ScrollViewMode.Vertical).With("grow").Into(equipped);
+            var equippedScroll = Ui.VScroll("grow").Into(equipped);
             foreach (GearSlot slot in System.Enum.GetValues(typeof(GearSlot)))
             {
                 var item = loadout[slot];
@@ -343,7 +334,7 @@ namespace ShardsOfEternity.Game
 
             var stash = Ui.Box("column").Into(columns);
             Ui.Text($"STASH ({run.Stash.Count})", "h3").Into(stash);
-            var stashScroll = new ScrollView(ScrollViewMode.Vertical).With("grow").Into(stash);
+            var stashScroll = Ui.VScroll("grow").Into(stash);
             if (run.Stash.Count == 0)
                 Ui.Text("Nothing here yet. Kill enemies and walk over their loot beams to pick items up.", "small", "muted").Into(stashScroll.contentContainer);
             foreach (var item in run.Stash.OrderByDescending(i => i.Rarity).ThenBy(i => i.Slot).ToList())

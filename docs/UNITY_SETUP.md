@@ -21,7 +21,7 @@ The Unity project lives at the root of this repository (`Assets/`, `Packages/`, 
 2. If Hub says the project was made with a different editor version, install `6000.6.7f1` or confirm the upgrade.
 3. The first open takes a few minutes while Unity imports packages and builds its `Library` cache.
 4. When the editor finishes loading, it creates and opens `Assets/ShardsOfEternity/Scenes/Prototype.unity` on its own. If it doesn't, use the menu **Shards of Eternity > Open Prototype Scene**.
-5. Press **Play**.
+5. Press **Play**. The game opens on the title screen: choose **New run**, pick 4 heroes and the run options, then **Enter the rift**.
 
 ## 4. Play the combat prototype
 
@@ -52,16 +52,23 @@ Deeper floors are harder: enemies gain 8% Health per floor and +1 Damage every 3
 | Attack | Click a red enemy | Tap twice |
 | Ability | Press 1 to 4 or click its button, then click a purple tile | Tap the button, then tap a target twice |
 | End turn | E | End turn button |
-| Pause | P | Pause button |
-| Cancel | Esc | Tap the ability again |
+| Pause menu | P or Esc (Esc cancels an aimed ability first) | Pause or Menu button |
+| Rotate camera | Right drag, or Z / X | Two-finger twist |
+| Pan camera | Middle drag, or WASD / arrow keys | Two-finger drag |
+| Zoom | Scroll wheel | Pinch |
+| Re-center camera | F | |
 
-The side panel shows the current hero, abilities, the exact outcome before you commit, rift pressure and the log. The bar at the top is the turn timeline. **New run** starts over; **Change squad / rules** goes back to the squad screen, where you pick 4 of the 7 classes, dungeon or raid, and the action shard options.
+The bar at the top is the turn order, with the floor counter, the reinforcement timer and the Pause button. The side panel (below the board on a portrait phone) shows the current unit, its ability cards with cooldowns, the exact outcome before you commit, rift pressure and the log. Health bars and status tags float over every unit. Hover an ability card to read what it does.
 
-You can also select the **Shards of Eternity** object in the scene and set the squad, run type, a fixed seed, the shard rules or the reinforcement schedule from the Inspector.
+The **pause menu** has Resume, Settings, Restart run and Abandon run. **Settings** sets the interface size, turns the health bars over units on or off, and lists the controls. Settings are remembered between sessions. On the squad screen you pick 4 of the 7 classes, a dungeon or a raid, and the experimental rules.
+
+You can also select the **Shards of Eternity** object in the scene and set the squad, run type, a fixed seed, the shard rules or the reinforcement schedule from the Inspector. Tick **Skip Title** to go straight into a run with those settings.
 
 ## 5. Run the tests
 
 Open **Window > General > Test Runner**, choose **EditMode**, and press **Run All**. There are 60 tests covering body blocking, the Priest and revives, enemy behaviors, themes and floor scaling, turn order, damage, abilities, enemy turns, room generation, floors and the boss, action shards, loot and gear, and simulated battles and whole runs.
+
+The **PlayMode** tab has 2 more tests that play through every screen (title, squad, battle, pause, settings, camp, end of run) in landscape and portrait. They save a screenshot of each to `Logs/Screenshots` in the project folder.
 
 ## 6. Commit the files Unity generates
 
@@ -84,8 +91,10 @@ Never commit `Library/`, `Temp/`, `Logs/` or `UserSettings/`. The `.gitignore` a
 | Folder | What it is |
 | --- | --- |
 | `Assets/ShardsOfEternity/Scripts/Core` | The game rules in plain C# with no Unity dependency: board, pathing, body blocking, turn timeline, damage, all 28 abilities, enemy AI, rift pressure, the room generator and the themes. |
-| `Assets/ShardsOfEternity/Scripts/Game` | The Unity side: `GameBootstrap` builds the scene, `BoardView` draws and animates, `BattleController` runs the turn loop and input, `BattleHud` is a temporary on-screen UI. |
+| `Assets/ShardsOfEternity/Scripts/Game` | The Unity side: `GameBootstrap` builds the scene, `BoardView` draws and animates, `BattleController` runs the turn loop and input, `CameraRig` moves the camera, and `BattleHud` is the UI (built with UI Toolkit in code). |
+| `Assets/ShardsOfEternity/Resources/UI` | `Shards.uss`, the style sheet for the whole UI: colors, panels, buttons, cards. Edit it to restyle the game. |
 | `Assets/ShardsOfEternity/Editor` | Creates the prototype scene and the menu item. |
 | `Assets/ShardsOfEternity/Tests/EditMode` | Unit tests for the rules. |
+| `Assets/ShardsOfEternity/Tests/PlayMode` | Plays through every screen in landscape and portrait and saves screenshots to `Logs/Screenshots`. |
 
 The rules resolve instantly and report what happened as a list of events (moved, damaged, knocked back, and so on). The view plays those events back as animations. That split keeps the rules testable and lets the same rules drive a PC, mobile or VR presentation later.

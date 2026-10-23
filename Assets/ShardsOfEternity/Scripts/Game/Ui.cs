@@ -37,10 +37,18 @@ namespace ShardsOfEternity.Game
         {
             var b = new Button(() => changed(!on)) { focusable = false }.With("btn", "check", "row");
             b.EnableInClassList("check--on", on);
-            Box("check-box").Into(b);
+            Box("check-mark").Into(Box("check-box").Into(b));
             Text(text, "small", "grow").Into(b);
             b.SetEnabled(enabled);
             return b;
+        }
+
+        /// <summary>A vertical scroll view that never shows a horizontal scrollbar.</summary>
+        public static ScrollView VScroll(params string[] classes)
+        {
+            var s = new ScrollView(ScrollViewMode.Vertical).With(classes);
+            s.horizontalScrollerVisibility = ScrollerVisibility.Hidden;
+            return s;
         }
 
         public static void Show(this VisualElement e, bool visible) =>

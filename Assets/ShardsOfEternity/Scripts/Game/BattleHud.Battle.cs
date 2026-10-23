@@ -49,7 +49,7 @@ namespace ShardsOfEternity.Game
             pauseButton = Ui.Btn("Pause", () => Controller.SetPaused(true), "btn-small").Into(status);
 
             side = Ui.Box("side").Into(battleLayer);
-            var scroll = new ScrollView(ScrollViewMode.Vertical).With("grow").Into(side);
+            var scroll = Ui.VScroll("grow").Into(side);
             var c = scroll.contentContainer;
 
             var header = Ui.Row().Into(c);
@@ -171,7 +171,9 @@ namespace ShardsOfEternity.Game
                 endTurnButton.SetEnabled(canAct);
             }
 
-            previewLabel.SetText(PreviewText());
+            string preview = PreviewText();
+            previewLabel.SetText(preview);
+            previewLabel.Show(!string.IsNullOrEmpty(preview));
 
             int p = Battle.Pressure;
             pressureLabel.SetText($"{(Battle.InCombat ? p.ToString() : "Dormant")} · {Battle.NextPressureEvent()}");

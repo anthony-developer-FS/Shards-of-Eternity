@@ -117,7 +117,8 @@ namespace ShardsOfEternity.Tests
                 this.height = height;
                 this.tag = tag;
                 camTarget = new RenderTexture(width, height, 24);
-                uiTarget = new RenderTexture(width, height, 0);
+                // 24 bits gives the UI a stencil buffer for its clipping masks.
+                uiTarget = new RenderTexture(width, height, 24);
                 cam.targetTexture = camTarget;
                 hud.PanelSettings.targetTexture = uiTarget;
                 hud.PanelSettings.clearColor = true;
@@ -136,6 +137,9 @@ namespace ShardsOfEternity.Tests
                 var ui = Read(uiTarget);
                 var output = new Texture2D(width, height, TextureFormat.RGB24, false);
                 var a = scene.GetPixels32();
+                // On graphics APIs whose texture origin is the top (Metal, D3D), the camera's render texture reads back
+                // upside down relative to the UI's, so flip the scene rows to line them up.
+                if (SystemInfo.graphicsUVStartsAtTop) a = FlipRows(a, width, height);
                 var b = ui.GetPixels32();
                 var c = new Color32[a.Length];
                 for (int i = 0; i < a.Length; i++)
@@ -152,6 +156,13 @@ namespace ShardsOfEternity.Tests
                 Object.Destroy(scene);
                 Object.Destroy(ui);
                 Object.Destroy(output);
+            }
+
+            static Color32[] FlipRows(Color32[] pixels, int w, int h)
+            {
+                var flipped = new Color32[pixels.Length];
+                for (int y = 0; y < h; y++) Array.Copy(pixels, y * w, flipped, (h - 1 - y) * w, w);
+                return flipped;
             }
 
             static Texture2D Read(RenderTexture rt)
