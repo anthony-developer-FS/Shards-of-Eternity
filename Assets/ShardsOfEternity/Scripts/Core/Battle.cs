@@ -70,6 +70,13 @@ namespace ShardsOfEternity.Core
         /// <summary>Reinforcement waves called so far on this floor.</summary>
         public int WavesCalled { get; private set; }
         public TurnRules Rules { get; set; } = TurnRules.Classic;
+        /// <summary>When on, slain enemies drop gear onto their tile. Runs turn this on.</summary>
+        public bool LootEnabled { get; set; }
+        /// <summary>Items lying on the floor, waiting for a hero to walk over them.</summary>
+        public Dictionary<Point, List<GearItem>> GroundLoot { get; } = new Dictionary<Point, List<GearItem>>();
+        /// <summary>Items heroes picked up on this floor.</summary>
+        public List<GearItem> PickedUp { get; } = new List<GearItem>();
+        public int GroundLootCount => GroundLoot.Values.Sum(l => l.Count);
         public BattleOutcome Outcome { get; private set; }
         public bool IsOver => Outcome != BattleOutcome.None;
         /// <summary>Newest first, like the prototype's log.</summary>
@@ -107,7 +114,8 @@ namespace ShardsOfEternity.Core
         }
 
         /// <summary>
-        /// Brings heroes' health, deaths and ultimate charge over from the previous floor. Cooldowns and shards reset.
+        /// Brings heroes' damage taken, deaths and ultimate charge over from the previous floor. Cooldowns and shards
+        /// reset. Damage carries rather than raw HP, so gear that raises Health between floors adds to current HP too.
         /// </summary>
         public void CarryOver(IEnumerable<Unit> previousHeroes)
         {
@@ -115,9 +123,37 @@ namespace ShardsOfEternity.Core
             {
                 var hero = Units.FirstOrDefault(u => u.IsHero && u.Def == old.Def);
                 if (hero == null) continue;
-                hero.Hp = old.Hp;
                 hero.Alive = old.Alive;
+                hero.Hp = old.Alive ? Math.Max(1, hero.MaxHp - (old.MaxHp - old.Hp)) : 0;
                 hero.Ultimate = old.Ultimate;
+            }
+        }
+
+        // ---------- loot ----------
+
+        void DropLoot(Unit enemy)
+        {
+            if (!LootEnabled) return;
+            foreach (var item in LootTable.RollDrops(rng, enemy, Layout.Floor))
+            {
+                var p = enemy.Position;
+                if (!GroundLoot.TryGetValue(p, out var pile)) GroundLoot[p] = pile = new List<GearItem>();
+                pile.Add(item);
+                Say($"{enemy.Name} drops {item.Name}.");
+                Emit(new BattleEvent { Type = BattleEventType.LootDropped, Unit = enemy, To = p, Item = item });
+            }
+        }
+
+        /// <summary>Heroes pick up everything on a tile they walk through or land on.</summary>
+        void PickUp(Unit u, Point p)
+        {
+            if (!u.IsHero || !GroundLoot.TryGetValue(p, out var pile)) return;
+            GroundLoot.Remove(p);
+            foreach (var item in pile)
+            {
+                PickedUp.Add(item);
+                Say($"{u.Name} picks up {item.Name}.");
+                Emit(new BattleEvent { Type = BattleEventType.LootPickedUp, Unit = u, To = p, Item = item });
             }
         }
 
@@ -309,6 +345,9 @@ namespace ShardsOfEternity.Core
                 if (Layout.IsFinalFloor)
                 {
                     Outcome = BattleOutcome.Victory;
+                    // The run is over, so the squad gathers whatever is still on the floor.
+                    foreach (var pile in GroundLoot.Values) PickedUp.AddRange(pile);
+                    GroundLoot.Clear();
                     Say(Layout.HasBoss ? "The rift lord falls. The rift is sealed." : "Room cleared. The rift door opens.");
                 }
                 else
@@ -384,6 +423,7 @@ namespace ShardsOfEternity.Core
                 if (pos == null) continue;
                 var u = AddUnit(Roster.Enemy(kind), pos.Value);
                 u.Awake = true;
+                u.IsReinforcement = true;
                 u.NextTurnAt = Clock + u.TurnInterval;
                 Emit(new BattleEvent { Type = BattleEventType.Spawned, Unit = u });
             }
@@ -411,6 +451,7 @@ namespace ShardsOfEternity.Core
             if (StaticWall(x, y)) return false;
             var t = Map[x, y];
             if (t == TileType.Spikes || t == TileType.Spawn || t == TileType.Exit || UnitAt(x, y) != null) return false;
+            if (GroundLoot.ContainsKey(new Point(x, y))) return false;
             var exit = Map.Find(TileType.Exit);
             var spawn = Map.Find(TileType.Spawn);
             var p = new Point(x, y);

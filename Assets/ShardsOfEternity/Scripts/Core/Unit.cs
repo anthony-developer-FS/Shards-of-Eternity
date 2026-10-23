@@ -27,6 +27,9 @@ namespace ShardsOfEternity.Core
         /// <summary>Extra timeline delay added when this turn ends, from heavy abilities.</summary>
         public int Recovery;
 
+        /// <summary>Arrived with a reinforcement wave. Drops loot half as often.</summary>
+        public bool IsReinforcement;
+
         public bool Moved;
         public bool Acted;
         /// <summary>Action shards left this turn, when <see cref="TurnRules.UseActionShards"/> is on.</summary>

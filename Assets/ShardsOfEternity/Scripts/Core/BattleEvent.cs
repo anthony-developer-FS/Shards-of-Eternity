@@ -24,6 +24,10 @@ namespace ShardsOfEternity.Core
         RoomWoke,
         /// <summary>A wall shift was telegraphed; see <see cref="Battle.PendingShift"/>.</summary>
         ShiftPlanned,
+        /// <summary><see cref="BattleEvent.Item"/> fell to the ground at <see cref="BattleEvent.To"/>.</summary>
+        LootDropped,
+        /// <summary>A hero picked up <see cref="BattleEvent.Item"/> at <see cref="BattleEvent.To"/>.</summary>
+        LootPickedUp,
         /// <summary>Every enemy on a floor before the last is dead and the exit is open.</summary>
         FloorCleared,
         /// <summary>The walls moved. Rebuild the board.</summary>
@@ -45,6 +49,7 @@ namespace ShardsOfEternity.Core
         public int Amount;
         public bool Crit;
         public string Text;
+        public GearItem Item;
 
         public override string ToString() => $"{Type} {Unit?.Name} {Other?.Name} {Amount} {Text}";
     }

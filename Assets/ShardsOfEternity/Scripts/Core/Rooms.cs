@@ -68,6 +68,8 @@ namespace ShardsOfEternity.Core
         /// through it to continue. A standalone room counts as the last floor.
         /// </summary>
         public bool IsFinalFloor = true;
+        /// <summary>1-based floor number in a run. Sets the item level of drops.</summary>
+        public int Floor = 1;
         public bool HasBoss => Enemies.Any(e => Roster.Enemy(e.Kind).IsBoss);
 
         /// <summary>The handmade room from the browser prototype.</summary>

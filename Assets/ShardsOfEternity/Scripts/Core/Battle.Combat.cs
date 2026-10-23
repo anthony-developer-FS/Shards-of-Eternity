@@ -74,6 +74,7 @@ namespace ShardsOfEternity.Core
                 t.Alive = false;
                 Say($"{t.Name} falls.");
                 Emit(new BattleEvent { Type = BattleEventType.Died, Unit = t });
+                if (t.IsEnemy) DropLoot(t);
             }
             CheckEnd();
         }
@@ -144,6 +145,8 @@ namespace ShardsOfEternity.Core
                     a.X = ox; a.Y = oy;
                     Emit(new BattleEvent { Type = BattleEventType.Swapped, Unit = u, Other = a });
                     Say($"{u.Name} swaps places with {a.Name}.");
+                    PickUp(u, u.Position);
+                    PickUp(a, a.Position);
                 }
                 else
                 {
@@ -151,6 +154,7 @@ namespace ShardsOfEternity.Core
                     u.Y = m.Target.Y;
                     Emit(new BattleEvent { Type = BattleEventType.Moved, Unit = u, Path = m.Path, To = m.Target });
                     if (m.Kind == MoveKind.Charge) Say($"{u.Name} charges {m.Distance} tiles.");
+                    foreach (var p in m.Path) PickUp(u, p);
                 }
                 if (CrossesSpikes(u, m))
                 {
@@ -276,6 +280,7 @@ namespace ShardsOfEternity.Core
             u.X = to.X;
             u.Y = to.Y;
             Emit(new BattleEvent { Type = BattleEventType.Teleported, Unit = u, To = to });
+            PickUp(u, to);
         }
 
         public List<Unit> LightningChain(Unit t)

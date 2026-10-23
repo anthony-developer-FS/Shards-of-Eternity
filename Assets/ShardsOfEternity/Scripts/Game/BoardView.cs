@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using ShardsOfEternity.Core;
 using UnityEngine;
 
@@ -18,6 +19,8 @@ namespace ShardsOfEternity.Game
         Transform unitRoot;
         Renderer[,] floors;
         Transform activeRing;
+        Transform lootRoot;
+        readonly List<(Transform beam, float width)> beams = new List<(Transform beam, float width)>();
         readonly Dictionary<Unit, Transform> units = new Dictionary<Unit, Transform>();
 
         public BattleHud Hud { get; set; }
@@ -39,6 +42,7 @@ namespace ShardsOfEternity.Game
 
             BuildTiles();
             SyncUnits();
+            RefreshLoot();
         }
 
         void BuildTiles()
@@ -218,6 +222,71 @@ namespace ShardsOfEternity.Game
 
         // ---------- animation ----------
 
+        // ---------- loot beams ----------
+
+        /// <summary>
+        /// Diablo-style pillars of light over every pile of loot, colored by the best item's rarity:
+        /// white, blue, yellow, orange. Better items get taller, thicker beams; legendaries also light the floor.
+        /// </summary>
+        public void RefreshLoot()
+        {
+            if (lootRoot != null) Destroy(lootRoot.gameObject);
+            beams.Clear();
+            lootRoot = new GameObject("Loot").transform;
+            lootRoot.SetParent(transform, false);
+            foreach (var pile in battle.GroundLoot)
+            {
+                var best = pile.Value.Max(i => i.Rarity);
+                var color = Palette.ForRarity(best);
+                float height = best == Rarity.Legendary ? 9f : best == Rarity.Rare ? 6f : best == Rarity.Magic ? 4f : 2.5f;
+                float width = best == Rarity.Legendary ? 0.16f : best == Rarity.Rare ? 0.12f : best == Rarity.Magic ? 0.09f : 0.07f;
+
+                var root = new GameObject($"Loot {pile.Key}").transform;
+                root.SetParent(lootRoot, false);
+                root.localPosition = TileToWorld(pile.Key);
+
+                var beam = GameObject.CreatePrimitive(PrimitiveType.Cylinder).transform;
+                beam.name = "Beam";
+                Destroy(beam.GetComponent<Collider>());
+                beam.GetComponent<Renderer>().sharedMaterial = Palette.Glow(color);
+                beam.SetParent(root, false);
+                beam.localScale = new Vector3(width, height / 2, width);
+                beam.localPosition = Vector3.up * height / 2;
+                beams.Add((beam, width));
+
+                var gem = GameObject.CreatePrimitive(PrimitiveType.Cube).transform;
+                gem.name = "Item";
+                Destroy(gem.GetComponent<Collider>());
+                gem.GetComponent<Renderer>().sharedMaterial = Palette.Glow(color);
+                gem.SetParent(root, false);
+                gem.localScale = Vector3.one * 0.22f;
+                gem.localPosition = new Vector3(0.25f, 0.15f, 0.25f);
+                gem.localRotation = Quaternion.Euler(45, 0, 45);
+
+                if (best >= Rarity.Rare)
+                {
+                    var light = new GameObject("Glow").AddComponent<Light>();
+                    light.transform.SetParent(root, false);
+                    light.transform.localPosition = Vector3.up * 0.6f;
+                    light.type = LightType.Point;
+                    light.color = color;
+                    light.range = best == Rarity.Legendary ? 3.5f : 2f;
+                    light.intensity = best == Rarity.Legendary ? 3f : 1.5f;
+                }
+            }
+        }
+
+        void Update()
+        {
+            // Beams shimmer so they read as light rather than solid poles.
+            float pulse = 1f + 0.18f * Mathf.Sin(Time.time * 4f);
+            foreach (var (beam, width) in beams)
+            {
+                if (beam == null) continue;
+                beam.localScale = new Vector3(width * pulse, beam.localScale.y, width * pulse);
+            }
+        }
+
         public IEnumerator Play(BattleEvent e)
         {
             Transform t = null;
@@ -283,6 +352,16 @@ namespace ShardsOfEternity.Game
                 case BattleEventType.Shifted:
                     BuildTiles();
                     yield return new WaitForSeconds(0.3f);
+                    break;
+                case BattleEventType.LootDropped:
+                    RefreshLoot();
+                    if (Hud != null) Hud.AddFloater(TileToWorld(e.To), e.Item.Name, Palette.ForRarity(e.Item.Rarity), e.Item.Rarity >= Rarity.Rare);
+                    yield return new WaitForSeconds(e.Item.Rarity >= Rarity.Rare ? 0.45f : 0.25f);
+                    break;
+                case BattleEventType.LootPickedUp:
+                    RefreshLoot();
+                    if (Hud != null) Hud.AddFloater(TileToWorld(e.To), "+ " + e.Item.Name, Palette.ForRarity(e.Item.Rarity));
+                    yield return new WaitForSeconds(0.15f);
                     break;
                 case BattleEventType.RoomWoke:
                     RecolorUnits();

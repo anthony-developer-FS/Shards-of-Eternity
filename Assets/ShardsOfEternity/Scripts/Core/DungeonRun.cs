@@ -30,6 +30,43 @@ namespace ShardsOfEternity.Core
         public int Floor { get; private set; }
         public Battle Battle { get; private set; }
         public TurnRules Rules { get; set; } = TurnRules.Classic;
+        /// <summary>Items picked up and not equipped.</summary>
+        public List<GearItem> Stash { get; } = new List<GearItem>();
+        /// <summary>Every item picked up this run, in order, for the end screen.</summary>
+        public List<GearItem> Found { get; } = new List<GearItem>();
+        /// <summary>Equipped gear by hero id. Applied to the heroes at the start of each floor.</summary>
+        public Dictionary<string, Loadout> Loadouts { get; } = new Dictionary<string, Loadout>();
+
+        public IReadOnlyList<string> Squad => squad;
+
+        public Loadout LoadoutFor(string heroId)
+        {
+            if (!Loadouts.TryGetValue(heroId, out var l)) Loadouts[heroId] = l = new Loadout();
+            return l;
+        }
+
+        /// <summary>Moves what the squad picked up on the current floor into the stash. Safe to call more than once.</summary>
+        public void CollectLoot()
+        {
+            if (Battle == null) return;
+            Stash.AddRange(Battle.PickedUp);
+            Found.AddRange(Battle.PickedUp);
+            Battle.PickedUp.Clear();
+        }
+
+        /// <summary>Equips a stash item on a hero; anything it replaces goes back to the stash.</summary>
+        public void Equip(string heroId, GearItem item)
+        {
+            if (!Stash.Remove(item)) return;
+            var old = LoadoutFor(heroId).Equip(item);
+            if (old != null) Stash.Add(old);
+        }
+
+        public void Unequip(string heroId, GearSlot slot)
+        {
+            var old = LoadoutFor(heroId).Unequip(slot);
+            if (old != null) Stash.Add(old);
+        }
 
         public bool IsFinalFloor => Floor == FloorCount;
 
@@ -49,6 +86,7 @@ namespace ShardsOfEternity.Core
         public bool NextFloor()
         {
             if (Floor >= FloorCount) return false;
+            CollectLoot();
             var previous = Battle;
             Floor++;
             int floorSeed = unchecked(seed + Floor * 7919);
@@ -56,8 +94,10 @@ namespace ShardsOfEternity.Core
             if (Floor == 1 && handmadeFirstFloor && !IsFinalFloor) room = RoomLayout.Prototype();
             else room = RoomGenerator.Generate(floorSeed, Theme, bossFloor: IsFinalFloor);
             room.IsFinalFloor = IsFinalFloor;
+            room.Floor = Floor;
 
-            Battle = new Battle(room, squad, floorSeed) { Rules = Rules };
+            Battle = new Battle(room, squad, floorSeed) { Rules = Rules, LootEnabled = true };
+            foreach (var hero in Battle.Units.Where(u => u.IsHero)) Gear.ApplyTo(hero, LoadoutFor(hero.Def.Id));
             if (previous != null) Battle.CarryOver(previous.Units.Where(u => u.IsHero));
             Battle.Start();
             return true;

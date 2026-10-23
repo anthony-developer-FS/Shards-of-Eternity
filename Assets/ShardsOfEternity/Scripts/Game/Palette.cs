@@ -13,6 +13,8 @@ namespace ShardsOfEternity.Game
     {
         static readonly Dictionary<Color32, Material> cache = new Dictionary<Color32, Material>();
         static Shader shader;
+        static Shader unlitShader;
+        static readonly Dictionary<Color32, Material> unlitCache = new Dictionary<Color32, Material>();
 
         public static readonly Color Move = Hex(0x4FA3F7);
         public static readonly Color Charge = Hex(0xF0A13C);
@@ -62,6 +64,24 @@ namespace ShardsOfEternity.Game
             cache[key] = m;
             return m;
         }
+
+        /// <summary>A flat, unshaded material, for things that should look like they glow (loot beams).</summary>
+        public static Material Glow(Color color)
+        {
+            Color32 key = color;
+            if (unlitCache.TryGetValue(key, out var m) && m != null) return m;
+            if (unlitShader == null)
+            {
+                if (GraphicsSettings.currentRenderPipeline != null) unlitShader = Shader.Find("Universal Render Pipeline/Unlit");
+                if (unlitShader == null) unlitShader = Shader.Find("Unlit/Color");
+                if (unlitShader == null) unlitShader = FindShader();
+            }
+            m = new Material(unlitShader) { color = color };
+            unlitCache[key] = m;
+            return m;
+        }
+
+        public static Color ForRarity(Rarity rarity) => Hex(Gear.RarityColor(rarity));
 
         static Shader FindShader()
         {
