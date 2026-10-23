@@ -147,8 +147,8 @@ namespace ShardsOfEternity.Game
             unitSubtitle.SetText(u.Def.Subtitle);
             hpFill.SetFill((float)u.Hp / u.MaxHp, hero ? Palette.Heal : Palette.AttackTarget);
             hpText.SetText($"{u.Hp} / {u.MaxHp}");
-            statsLabel.SetText($"Damage {u.Damage} · Armor {u.EffectiveArmor} · Speed {u.Speed} · Move {u.Move} · Range {u.Range} · " +
-                $"Crit {Mathf.RoundToInt((float)u.Crit * 100)}% +{Mathf.RoundToInt((float)u.CritDamage * 100)}%");
+            statsLabel.SetText($"DMG {u.Damage} · ARM {u.EffectiveArmor} · SPD {u.Speed} · MOV {u.Move} · RNG {u.Range} · " +
+                $"CRIT {Mathf.RoundToInt((float)u.Crit * 100)}% +{Mathf.RoundToInt((float)u.CritDamage * 100)}%");
             ruleLabel.SetText(u.Def.Rule);
 
             heroControls.Show(hero);

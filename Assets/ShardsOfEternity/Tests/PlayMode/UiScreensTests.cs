@@ -67,6 +67,7 @@ namespace ShardsOfEternity.Tests
             yield return new WaitForSecondsRealtime(1.5f);
             hud.AddFloater(Vector3.zero, "-12", Palette.Crit, true);
             yield return shooter.Take("04-battle");
+            yield return new WaitForSecondsRealtime(1.2f);
 
             controller.SetPaused(true);
             yield return shooter.Take("05-pause");
@@ -116,6 +117,7 @@ namespace ShardsOfEternity.Tests
                 this.width = width;
                 this.height = height;
                 this.tag = tag;
+                // The camera keeps a full-size target between shots so its aspect matches the screen being simulated.
                 camTarget = new RenderTexture(width, height, 24);
                 // 24 bits gives the UI a stencil buffer for its clipping masks.
                 uiTarget = new RenderTexture(width, height, 24);
@@ -132,8 +134,7 @@ namespace ShardsOfEternity.Tests
             {
                 // A few frames for layout, the camera fit and any animation to settle.
                 for (int i = 0; i < 4; i++) yield return null;
-                cam.Render();
-                var scene = Read(camTarget);
+                var scene = RenderScene();
                 var ui = Read(uiTarget);
                 var output = new Texture2D(width, height, TextureFormat.RGB24, false);
                 var a = scene.GetPixels32();
@@ -153,6 +154,36 @@ namespace ShardsOfEternity.Tests
                 Object.Destroy(scene);
                 Object.Destroy(ui);
                 Object.Destroy(output);
+            }
+
+            /// <summary>
+            /// The 3D view as it appears on screen: the camera renders only into its viewport rect (the area the HUD
+            /// leaves free), with the background color around it. A manual render into a texture ignores the rect, so
+            /// render the rect's area into its own texture and place it.
+            /// </summary>
+            Texture2D RenderScene()
+            {
+                var rect = cam.rect;
+                int x = Mathf.RoundToInt(rect.x * width), y = Mathf.RoundToInt(rect.y * height);
+                int w = Mathf.Max(1, Mathf.RoundToInt(rect.width * width)), h = Mathf.Max(1, Mathf.RoundToInt(rect.height * height));
+                var view = RenderTexture.GetTemporary(w, h, 24);
+                cam.targetTexture = view;
+                cam.rect = new Rect(0, 0, 1, 1);
+                cam.Render();
+                var part = Read(view);
+                cam.targetTexture = camTarget;
+                cam.rect = rect;
+                RenderTexture.ReleaseTemporary(view);
+
+                var full = new Texture2D(width, height, TextureFormat.RGBA32, false);
+                var fill = new Color32[width * height];
+                Color32 background = cam.backgroundColor;
+                for (int i = 0; i < fill.Length; i++) fill[i] = background;
+                full.SetPixels32(fill);
+                full.SetPixels(x, y, Mathf.Min(w, width - x), Mathf.Min(h, height - y), part.GetPixels(0, 0, Mathf.Min(w, width - x), Mathf.Min(h, height - y)));
+                full.Apply();
+                Object.Destroy(part);
+                return full;
             }
 
             static Texture2D Read(RenderTexture rt)
