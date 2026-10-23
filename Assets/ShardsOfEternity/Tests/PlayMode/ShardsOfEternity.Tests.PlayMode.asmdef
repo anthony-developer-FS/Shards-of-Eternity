@@ -1,0 +1,23 @@
+{
+    "name": "ShardsOfEternity.Tests.PlayMode",
+    "rootNamespace": "ShardsOfEternity.Tests",
+    "references": [
+        "ShardsOfEternity.Core",
+        "ShardsOfEternity.Game",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

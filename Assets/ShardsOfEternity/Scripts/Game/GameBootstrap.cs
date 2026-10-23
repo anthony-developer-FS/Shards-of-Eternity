@@ -6,11 +6,12 @@ namespace ShardsOfEternity.Game
 {
     /// <summary>
     /// Entry point for the combat prototype. Put it on one GameObject in an otherwise empty scene and press Play:
-    /// it creates the camera, light, board, battle loop and HUD at runtime, so no prefabs or art are needed yet.
+    /// it creates the camera, light, board, battle loop, camera rig and UI at runtime, so no prefabs or art are needed yet.
+    /// The game opens on the title screen.
     /// </summary>
     public sealed class GameBootstrap : MonoBehaviour
     {
-        [Tooltip("Hero ids: kael, bram, nyra, ilse, wren, tova. Pick 4.")]
+        [Tooltip("Hero ids: kael, bram, nyra, ilse, wren, tova, sera. Pick 4.")]
         public List<string> squad = new List<string>(Roster.DefaultSquad);
 
         [Tooltip("Dungeons have 3-4 floors, raids have 12. The last floor has the boss.")]
@@ -32,6 +33,9 @@ namespace ShardsOfEternity.Game
 
         [Tooltip("Room and crit seed. 0 picks a random one each time.")]
         public int seed;
+
+        [Tooltip("Go straight into a run with the squad above instead of opening the title screen.")]
+        public bool skipTitle;
 
         void Start()
         {
@@ -58,6 +62,10 @@ namespace ShardsOfEternity.Game
             var board = new GameObject("Board").AddComponent<BoardView>();
             var controller = gameObject.AddComponent<BattleController>();
             var hud = gameObject.AddComponent<BattleHud>();
+            var rig = cam.GetComponent<CameraRig>();
+            if (rig == null) rig = cam.gameObject.AddComponent<CameraRig>();
+            rig.Board = board;
+            rig.Hud = hud;
 
             board.Hud = hud;
             hud.Controller = controller;
@@ -72,7 +80,8 @@ namespace ShardsOfEternity.Game
             controller.ReinforcementDelays = reinforcementDelays;
             controller.FastTestTimer = fastTestTimer;
             controller.Seed = seed;
-            controller.NewRun();
+            hud.EnsureBuilt();
+            if (skipTitle) hud.StartRun();
         }
     }
 }
