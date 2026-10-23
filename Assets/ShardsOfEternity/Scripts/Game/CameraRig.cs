@@ -53,7 +53,7 @@ namespace ShardsOfEternity.Game
 
         Vector3 BoardCenter(Battle b) => new Vector3((b.Width - 1) / 2f, 0, -(b.Height - 1) / 2f);
 
-        const float Margin = 0.03f;
+        const float Margin = 0.05f;
 
         /// <summary>
         /// The closest distance at which every corner of the room (with headroom for units standing on it) projects

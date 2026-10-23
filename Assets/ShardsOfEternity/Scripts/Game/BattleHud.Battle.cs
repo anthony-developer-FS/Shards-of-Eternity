@@ -60,6 +60,7 @@ namespace ShardsOfEternity.Game
             Ui.Bar(out hpFill).Into(hpRow);
             hpText = Ui.Text("", "hp-text").Into(hpRow);
             statsLabel = Ui.Text("", "small").Into(c);
+            statsLabel.style.fontSize = 12;
             ruleLabel = Ui.Text("", "small", "muted", "italic").Into(c);
             ruleLabel.style.marginTop = 4;
 
@@ -148,7 +149,7 @@ namespace ShardsOfEternity.Game
             hpFill.SetFill((float)u.Hp / u.MaxHp, hero ? Palette.Heal : Palette.AttackTarget);
             hpText.SetText($"{u.Hp} / {u.MaxHp}");
             statsLabel.SetText($"DMG {u.Damage} · ARM {u.EffectiveArmor} · SPD {u.Speed} · MOV {u.Move} · RNG {u.Range} · " +
-                $"CRIT {Mathf.RoundToInt((float)u.Crit * 100)}% +{Mathf.RoundToInt((float)u.CritDamage * 100)}%");
+                $"CRIT {Mathf.RoundToInt((float)u.Crit * 100)}%/+{Mathf.RoundToInt((float)u.CritDamage * 100)}%");
             ruleLabel.SetText(u.Def.Rule);
 
             heroControls.Show(hero);
