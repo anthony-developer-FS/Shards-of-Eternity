@@ -99,7 +99,8 @@
 .soe .seg .btn.seg--on { background-color: var(--panel-3); color: var(--gold); -unity-font-style: bold; }
 
 /* ---------- menus ---------- */
-.soe .menu-screen { background-color: var(--bg); align-items: center; justify-content: center; }
+.soe .menu-screen { background-color: rgba(14, 15, 20, 0.82); align-items: center; justify-content: center; }
+.soe .menu-screen--title { background-color: rgba(14, 15, 20, 0.35); justify-content: flex-start; padding-top: 6%; }
 .soe .menu-column { align-items: stretch; }
 .soe .shard { position: absolute; border-width: 2px; border-color: var(--purple); rotate: 45deg; opacity: 0.18; }
 .soe .shard--gold { border-color: var(--gold); opacity: 0.22; }

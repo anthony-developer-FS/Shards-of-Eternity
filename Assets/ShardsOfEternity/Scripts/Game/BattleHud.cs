@@ -275,7 +275,7 @@ namespace ShardsOfEternity.Game
                 tag.Root.Show(visible);
                 if (!visible) continue;
                 Controller.Board.TryGetUnitTransform(u, out tr);
-                var screen = cam.WorldToScreenPoint(tr.position + Vector3.up * 1.2f);
+                var screen = cam.WorldToScreenPoint(tr.position + Vector3.up * Controller.Board.BarHeight(u));
                 if (screen.z < 0)
                 {
                     tag.Root.Show(false);

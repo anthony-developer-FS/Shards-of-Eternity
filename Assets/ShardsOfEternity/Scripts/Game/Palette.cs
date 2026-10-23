@@ -6,8 +6,9 @@ using UnityEngine.Rendering;
 namespace ShardsOfEternity.Game
 {
     /// <summary>
-    /// Placeholder look for the prototype: flat colored primitives, no imported art.
-    /// Materials are created at runtime and cached per color.
+    /// Colors and materials. Models (see ModelLibrary) share one vertex-colored miniature material; the flat colored
+    /// materials are for highlights, loot beams and the primitive fallback used when a model is missing.
+    /// Materials are created at runtime and cached.
     /// </summary>
     public static class Palette
     {
@@ -31,6 +32,54 @@ namespace ShardsOfEternity.Game
         public static readonly Color Xp = Hex(0x9C7CF5);
         public static readonly Color Pillar = Hex(0x6B6F7D);
         public static readonly Color Fallen = Hex(0x55585F);
+
+        static Material miniature, overlay, sky;
+        static readonly Dictionary<Color32, Material> overlayCache = new Dictionary<Color32, Material>();
+
+        /// <summary>Shards/Miniature: painted vertex colors, baked occlusion, glow and a rim light.</summary>
+        public static Material Miniature
+        {
+            get
+            {
+                if (miniature != null) return miniature;
+                var s = LoadShader("Miniature");
+                if (s == null && GraphicsSettings.currentRenderPipeline != null)
+                    s = Shader.Find("Universal Render Pipeline/Particles/Simple Lit"); // reads vertex colors too
+                miniature = new Material(s != null ? s : FindShader()) { name = "Miniature" };
+                return miniature;
+            }
+        }
+
+        /// <summary>A see-through color drawn just above the floor, for tile highlights.</summary>
+        public static Material Overlay(Color color)
+        {
+            Color32 key = color;
+            if (overlayCache.TryGetValue(key, out var m) && m != null) return m;
+            var s = LoadShader("Overlay");
+            m = new Material(s != null ? s : Glow(Color.white).shader) { name = "Overlay", color = color };
+            overlayCache[key] = m;
+            return m;
+        }
+
+        /// <summary>Unlit vertex colors, drawn behind everything: the sky dome.</summary>
+        public static Material Sky
+        {
+            get
+            {
+                if (sky != null) return sky;
+                var s = LoadShader("Sky");
+                sky = new Material(s != null ? s : Glow(Color.black).shader) { name = "Sky" };
+                return sky;
+            }
+        }
+
+        /// <summary>One of the game's shaders in Resources/Shaders, if it compiled for this platform and pipeline.</summary>
+        static Shader LoadShader(string name)
+        {
+            var s = Resources.Load<Shader>("Shaders/" + name);
+            if (s == null) s = Shader.Find("Shards/" + name);
+            return s != null && s.isSupported ? s : null;
+        }
 
         public static Color Hex(uint rgb) =>
             new Color32((byte)(rgb >> 16), (byte)(rgb >> 8), (byte)rgb, 255);

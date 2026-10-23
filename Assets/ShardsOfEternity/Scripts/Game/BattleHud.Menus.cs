@@ -14,7 +14,8 @@ namespace ShardsOfEternity.Game
         void BuildTitle()
         {
             menuLayer.Clear();
-            var screen = Ui.Box("layer", "menu-screen").Into(menuLayer);
+            // The title lets the heroes on their floating island show through from behind.
+            var screen = Ui.Box("layer", "menu-screen", "menu-screen--title").Into(menuLayer);
             Decorate(screen);
             if (SettingsOpen)
             {
@@ -170,6 +171,14 @@ namespace ShardsOfEternity.Game
             }
             Ui.Text("DISPLAY", "h3").Into(c);
             Ui.Check("Health bars and status tags over units", ShowUnitBars, v => { SetShowUnitBars(v); RefreshSettings(); }).Into(c);
+
+            Ui.Text("MUSIC", "h3").Into(c);
+            var music = Ui.Box("seg").Into(c);
+            foreach (var v in MusicPlayer.Volumes)
+            {
+                var b = Ui.Btn(v == 0 ? "Off" : $"{Mathf.RoundToInt(v * 100)}%", () => { MusicPlayer.SetVolume(v); RefreshSettings(); }).Into(music);
+                b.EnableInClassList("seg--on", Mathf.Approximately(MusicPlayer.Volume, v));
+            }
 
             if (CurrentMenu != Menu.None)
             {
