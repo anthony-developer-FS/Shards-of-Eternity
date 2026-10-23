@@ -112,9 +112,17 @@ namespace ShardsOfEternity.Game
             GUILayout.EndArea();
 
             if (Battle != null && (Battle.Outcome == BattleOutcome.Victory || Battle.Outcome == BattleOutcome.Defeat)) DrawGameOver(vw, vh);
+            else if (Controller.InCamp) DrawCamp(vw, vh);
             else if (Battle != null && Battle.Outcome == BattleOutcome.FloorComplete) DrawBanner(vw, vh, $"Descending to floor {Controller.Run.Floor + 1}...");
             else if (Controller.Paused) DrawPaused(vw, vh);
+
+            // Changes that add or remove controls run after drawing, so IMGUI's layout pass stays consistent.
+            var action = deferred;
+            deferred = null;
+            action?.Invoke();
         }
+
+        System.Action deferred;
 
         Rect CenterRect(float vw, float vh, float w, float h)
         {
@@ -261,10 +269,11 @@ namespace ShardsOfEternity.Game
             GUILayout.EndHorizontal();
             Controller.HandmadeFirstFloor = GUILayout.Toggle(Controller.HandmadeFirstFloor, " Floor 1 is the browser prototype's room");
             Controller.UseActionShards = GUILayout.Toggle(Controller.UseActionShards, " Action shards (experimental): 2 per turn, spend on any mix of moves and actions");
-            if (Controller.UseActionShards)
-                Controller.BankShards = GUILayout.Toggle(Controller.BankShards, "     Bank unspent shards, up to 4");
+            GUI.enabled = Controller.UseActionShards;
+            Controller.BankShards = GUILayout.Toggle(Controller.BankShards, "     Bank unspent shards, up to 4");
+            GUI.enabled = true;
             GUI.enabled = Controller.SquadReady;
-            if (GUILayout.Button("<b>Enter the rift</b>", button, GUILayout.MinHeight(44))) Controller.NewRun();
+            if (GUILayout.Button("<b>Enter the rift</b>", button, GUILayout.MinHeight(44))) deferred = Controller.NewRun;
             GUI.enabled = true;
         }
 
@@ -316,11 +325,10 @@ namespace ShardsOfEternity.Game
 
             GUILayout.Space(6);
             GUILayout.BeginHorizontal();
-            if (GUILayout.Button("New run")) Controller.NewRun();
+            if (GUILayout.Button("New run")) deferred = Controller.NewRun;
             if (GUILayout.Button("Change squad / rules"))
             {
-                Controller.Squad.Clear();
-                Controller.NewRun();
+                deferred = () => { Controller.Squad.Clear(); Controller.NewRun(); };
             }
             GUILayout.EndHorizontal();
             string room = Battle.Layout.Seed >= 0 ? $"{Battle.Layout.Theme.Name}, seed {Battle.Layout.Seed}" : "Prototype room";
@@ -383,8 +391,18 @@ namespace ShardsOfEternity.Game
                     var free = Battle.FreeAttackers(u, m);
                     if (free.Count > 0) s += $" Careful: {string.Join(" and ", free.Select(e => e.Name))} will get a free attack.";
                     if (Battle.CrossesSpikes(u, m)) s += $" Spikes deal {Battle.SpikeDamage} damage.";
+                    var loot = m.Path.Where(p => Battle.GroundLoot.ContainsKey(p)).SelectMany(p => Battle.GroundLoot[p]).ToList();
+                    if (loot.Count > 0) s += $" Picks up {string.Join(", ", loot.Select(RarityName))}.";
+                    if (Battle.Map[m.Target] == TileType.Exit)
+                    {
+                        s += " Leads the squad to the next floor.";
+                        int left = Battle.GroundLootCount - loot.Count;
+                        if (left > 0) s += $" <color=#FF7A6E>{left} item{(left > 1 ? "s are" : " is")} still on the floor and will be left behind.</color>";
+                    }
                     return s;
                 }
+                if (Battle.GroundLoot.TryGetValue(focus.Value, out var pile))
+                    return "Loot: " + string.Join(", ", pile.Select(RarityName)) + ". Walk a hero over it to pick it up.";
                 if (t != null && t.IsEnemy)
                 {
                     string s = $"{t.Name}: {t.Hp}/{t.MaxHp} HP, Damage {t.Damage}, Armor {t.Armor}, Attack Speed {t.Speed}, Move {t.Move}. {t.Def.Rule}";
@@ -400,10 +418,122 @@ namespace ShardsOfEternity.Game
             return "Click a highlighted tile to move, or a red enemy to attack. Keys 1-4 pick abilities, E ends the turn.";
         }
 
+        static string Hex(Color c) => ColorUtility.ToHtmlStringRGB(c);
+
+        /// <summary>An item's name in its rarity color.</summary>
+        static string RarityName(GearItem item) => $"<color=#{Hex(Palette.ForRarity(item.Rarity))}>{item.Name}</color>";
+
+        static string StatLine(GearItem item) => string.Join(", ", item.Stats.Select(s => s.ToString()));
+
+        // ---------- camp (between floors) ----------
+
+        int campHero;
+        Vector2 campEquippedScroll, campStashScroll;
+
+        /// <summary>Equip screen between floors: pick a hero, see their gear and stats, equip from the stash.</summary>
+        void DrawCamp(float vw, float vh)
+        {
+            var run = Controller.Run;
+            float w = Mathf.Min(vw - 24, 860), h = Mathf.Min(vh - 24, 580);
+            var rect = new Rect((vw - w) / 2, (vh - h) / 2, w, h);
+            hudRects.Add(rect);
+            GUI.Box(rect, GUIContent.none);
+            GUI.Box(rect, GUIContent.none);
+            GUI.Box(rect, GUIContent.none);
+            GUILayout.BeginArea(new Rect(rect.x + 14, rect.y + 10, rect.width - 28, rect.height - 20));
+
+            GUILayout.Label($"Camp · floor {run.Floor} of {run.FloorCount} cleared", title);
+            GUILayout.Label($"Equip what you found before going deeper. Health lost stays lost; new Health from gear is added on top.", small);
+
+            var heroes = run.Battle.Units.Where(u => u.IsHero).ToList();
+            campHero = Mathf.Clamp(campHero, 0, heroes.Count - 1);
+            GUILayout.BeginHorizontal();
+            for (int i = 0; i < heroes.Count; i++)
+            {
+                var hu = heroes[i];
+                GUI.color = i == campHero ? Palette.ActiveRing : Color.white;
+                if (GUILayout.Button($"<b>{hu.Name}</b> {hu.Def.HeroClass}{(hu.Alive ? "" : " (fallen)")}", button, GUILayout.MinHeight(32))) campHero = i;
+            }
+            GUI.color = Color.white;
+            GUILayout.EndHorizontal();
+
+            var hero = heroes[campHero];
+            string id = hero.Def.Id;
+            var loadout = run.LoadoutFor(id);
+            var preview = new Unit(-1, hero.Def, default);
+            Gear.ApplyTo(preview, loadout);
+            GUILayout.Label($"Next floor: Damage {preview.Damage} · Armor {preview.Armor} · Health {preview.MaxHp} · Attack Speed {preview.Speed} · " +
+                $"Move {preview.Move} · Crit {Mathf.RoundToInt((float)preview.Crit * 100)}% +{Mathf.RoundToInt((float)preview.CritDamage * 100)}%", label);
+
+            bool wide = w >= 640;
+            if (wide) GUILayout.BeginHorizontal();
+
+            GUILayout.BeginVertical(GUILayout.Width(wide ? w * 0.45f : w - 28));
+            GUILayout.Label("<b>Equipped</b>", label);
+            campEquippedScroll = GUILayout.BeginScrollView(campEquippedScroll, GUILayout.MinHeight(wide ? h - 210 : (h - 230) / 2));
+            foreach (GearSlot slot in System.Enum.GetValues(typeof(GearSlot)))
+            {
+                var item = loadout[slot];
+                GUILayout.BeginHorizontal();
+                GUILayout.Label($"{Gear.SlotName(slot)}:", small, GUILayout.Width(72));
+                if (item == null) GUILayout.Label("<color=#777777>empty</color>", small);
+                else
+                {
+                    GUILayout.Label($"{RarityName(item)}  <size=11>{StatLine(item)}</size>", small);
+                    if (GUILayout.Button("Remove", GUILayout.Width(66))) deferred = () => run.Unequip(id, slot);
+                }
+                GUILayout.EndHorizontal();
+            }
+            GUILayout.EndScrollView();
+            GUILayout.EndVertical();
+
+            GUILayout.BeginVertical();
+            GUILayout.Label($"<b>Stash</b> ({run.Stash.Count})", label);
+            campStashScroll = GUILayout.BeginScrollView(campStashScroll, GUILayout.MinHeight(wide ? h - 210 : (h - 230) / 2));
+            if (run.Stash.Count == 0) GUILayout.Label("Nothing here yet. Kill enemies and walk over their loot beams to pick items up.", small);
+            foreach (var item in run.Stash.OrderByDescending(i => i.Rarity).ThenBy(i => i.Slot).ToList())
+            {
+                GUILayout.BeginHorizontal(GUI.skin.box);
+                GUILayout.BeginVertical();
+                GUILayout.Label($"{RarityName(item)}  <size=11>{item.Rarity} {Gear.SlotName(item.Slot)} · level {item.ItemLevel}</size>", small);
+                GUILayout.Label($"<size=11>{StatLine(item)}</size>", small);
+                GUILayout.Label($"<size=11>{Compare(item, loadout.WouldReplace(item))}</size>", small);
+                GUILayout.EndVertical();
+                if (GUILayout.Button("Equip", GUILayout.Width(60), GUILayout.MinHeight(30))) deferred = () => run.Equip(id, item);
+                GUILayout.EndHorizontal();
+            }
+            GUILayout.EndScrollView();
+            GUILayout.EndVertical();
+
+            if (wide) GUILayout.EndHorizontal();
+
+            GUILayout.FlexibleSpace();
+            if (GUILayout.Button($"<b>Descend to floor {run.Floor + 1}</b>{(run.Floor + 1 == run.FloorCount ? "  <size=12>(the boss waits here)</size>" : "")}",
+                    button, GUILayout.MinHeight(40)))
+                deferred = Controller.LeaveCamp;
+            GUILayout.EndArea();
+        }
+
+        /// <summary>Stat changes if this item replaced the equipped one: green for gains, red for losses.</summary>
+        static string Compare(GearItem item, GearItem current)
+        {
+            var parts = new List<string>();
+            foreach (StatType stat in System.Enum.GetValues(typeof(StatType)))
+            {
+                double delta = item.Total(stat) - (current?.Total(stat) ?? 0);
+                if (System.Math.Abs(delta) < 1e-6) continue;
+                bool pct = stat == StatType.CritChance || stat == StatType.CritDamage;
+                string amount = pct ? $"{System.Math.Round(delta * 100):+0;-0}%" : $"{delta:+0;-0}";
+                parts.Add($"<color={(delta > 0 ? "#6EE7A0" : "#FF7A6E")}>{amount} {Gear.StatName(stat)}</color>");
+            }
+            string vs = current == null ? "vs empty slot" : $"vs {current.Name}";
+            return parts.Count == 0 ? $"No change {vs}" : $"{string.Join(", ", parts)} {vs}";
+        }
+
         void DrawGameOver(float vw, float vh)
         {
             bool win = Battle.Outcome == BattleOutcome.Victory;
-            var rect = CenterRect(vw, vh, 340, 180);
+            var rect = CenterRect(vw, vh, 360, 210);
             hudRects.Add(rect);
             GUI.Box(rect, GUIContent.none);
             GUI.Box(rect, GUIContent.none);
@@ -413,12 +543,15 @@ namespace ShardsOfEternity.Game
             GUILayout.Label(win
                 ? $"The Rift Lord is dead and all {run.FloorCount} floors are cleared. {Battle.Heroes.Count()} of 4 heroes standing."
                 : $"The rift claimed your squad on floor {run.Floor} of {run.FloorCount}.", label);
+            run.CollectLoot();
+            var best = run.Found.OrderByDescending(i => i.Rarity).ThenByDescending(i => i.ItemLevel).FirstOrDefault();
+            GUILayout.Label($"Loot found: {run.Found.Count} item{(run.Found.Count == 1 ? "" : "s")}" +
+                (best != null ? $". Best: {RarityName(best)}" : ""), label);
             GUILayout.BeginHorizontal();
-            if (GUILayout.Button("New run", GUILayout.MinHeight(36))) Controller.NewRun();
+            if (GUILayout.Button("New run", GUILayout.MinHeight(36))) deferred = Controller.NewRun;
             if (GUILayout.Button("Change squad / rules", GUILayout.MinHeight(36)))
             {
-                Controller.Squad.Clear();
-                Controller.NewRun();
+                deferred = () => { Controller.Squad.Clear(); Controller.NewRun(); };
             }
             GUILayout.EndHorizontal();
             GUILayout.EndArea();

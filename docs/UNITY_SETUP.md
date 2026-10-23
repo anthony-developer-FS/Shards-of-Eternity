@@ -29,6 +29,10 @@ A run is a descent through several floors: a **dungeon** has 3 or 4, a **raid** 
 
 Once a room wakes, **reinforcements** arrive every 2 minutes of real time. The countdown is at the top right; **Pause** (or P) stops it. Rift pressure still rises with the turn timeline, but now only shifts the walls.
 
+**Loot.** Slain enemies can drop gear onto their tile, marked by a beam of light in the item's rarity color: white for Common, blue for Magic, yellow for Rare and orange for Legendary. Better items get taller beams, and Rare and Legendary ones light up the floor around them. Walk a hero over the tile to pick the items up. Anything still on the floor when you take the exit is left behind. The boss always drops two Rare or better items. Deeper floors drop better rarities and bigger stats.
+
+**Gear.** Heroes have 13 slots: head, shoulders, amulet, chest, wrists, hands, waist, legs, feet, two rings, main hand and off hand. Gear adds Damage, Armor, Health, Attack Speed, crit chance and crit damage, and Legendary boots add Move. After each floor you make **camp**: pick a hero, compare stash items against what they wear (green is better, red is worse), equip, then descend.
+
 **Action shards** are an experimental option on the squad screen. Each hero gets 2 shards per turn and every move, attack or ability costs 1, so you can move twice, attack twice, or do one of each. With **Bank unspent shards** on, shards you don't spend carry over, up to 4.
 
 | Action | Mouse and keyboard | Touch |
@@ -47,7 +51,7 @@ You can also select the **Shards of Eternity** object in the scene and set the s
 
 ## 5. Run the tests
 
-Open **Window > General > Test Runner**, choose **EditMode**, and press **Run All**. There are 34 tests covering body blocking, turn order, damage, abilities, enemy turns, room generation, floors and the boss, action shards, and simulated battles and whole runs.
+Open **Window > General > Test Runner**, choose **EditMode**, and press **Run All**. There are 42 tests covering body blocking, turn order, damage, abilities, enemy turns, room generation, floors and the boss, action shards, loot and gear, and simulated battles and whole runs.
 
 ## 6. Commit the files Unity generates
 

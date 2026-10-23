@@ -41,6 +41,8 @@ namespace ShardsOfEternity.Game
         public Battle Battle => Run?.Battle;
         public bool Busy { get; private set; }
         public bool Paused { get; private set; }
+        /// <summary>Between floors: the squad equips gear before going deeper.</summary>
+        public bool InCamp { get; private set; }
         public float ReinforcementCountdown { get; private set; }
         /// <summary>Index of the ability being aimed, or -1 when moving and attacking.</summary>
         public int AbilityIndex { get; private set; } = -1;
@@ -55,6 +57,7 @@ namespace ShardsOfEternity.Game
         {
             StopAllCoroutines();
             SetPaused(false);
+            InCamp = false;
             if (!SquadReady)
             {
                 Run = null;
@@ -78,6 +81,14 @@ namespace ShardsOfEternity.Game
             Hover = null;
             ReinforcementCountdown = ReinforcementInterval;
             StartCoroutine(Advance());
+        }
+
+        /// <summary>Leaves the between-floor camp and loads the next floor with the new gear applied.</summary>
+        public void LeaveCamp()
+        {
+            if (!InCamp) return;
+            InCamp = false;
+            StartCoroutine(Descend());
         }
 
         IEnumerator Descend()
@@ -167,7 +178,10 @@ namespace ShardsOfEternity.Game
             Board.SyncUnits();
             if (Battle.Outcome == BattleOutcome.FloorComplete)
             {
-                yield return Descend();
+                // Make camp: the HUD shows the equip screen until the player continues.
+                Run.CollectLoot();
+                InCamp = true;
+                Refresh();
                 yield break;
             }
             if (!Battle.IsOver && Battle.CurrentTurnSpent)
