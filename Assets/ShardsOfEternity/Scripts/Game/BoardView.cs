@@ -29,6 +29,20 @@ namespace ShardsOfEternity.Game
 
         public bool TryGetUnitTransform(Unit u, out Transform t) => units.TryGetValue(u, out t) && t != null;
 
+        /// <summary>The battle on the board, or null between runs.</summary>
+        public Battle Battle => battle;
+
+        /// <summary>Removes the board, for the menus between runs.</summary>
+        public void Clear()
+        {
+            battle = null;
+            if (unitRoot != null) Destroy(unitRoot.gameObject);
+            if (tileRoot != null) Destroy(tileRoot.gameObject);
+            units.Clear();
+            if (lootRoot != null) Destroy(lootRoot.gameObject);
+            beams.Clear();
+        }
+
         public void Build(Battle b)
         {
             battle = b;
@@ -416,22 +430,6 @@ namespace ShardsOfEternity.Game
         }
 
         // ---------- camera and picking ----------
-
-        /// <summary>Angles the camera down at the board and pulls back until the whole room fits its viewport.</summary>
-        public void FrameCamera(Camera cam)
-        {
-            if (battle == null) return;
-            const float pitch = 58f;
-            cam.fieldOfView = 35f;
-            var center = new Vector3((battle.Width - 1) / 2f, 0, -(battle.Height - 1) / 2f);
-            float halfW = battle.Width / 2f + 0.3f;
-            float halfH = (battle.Height / 2f + 0.3f) * Mathf.Sin(pitch * Mathf.Deg2Rad) + 0.6f;
-            float tanV = Mathf.Tan(cam.fieldOfView * 0.5f * Mathf.Deg2Rad);
-            float tanH = tanV * Mathf.Max(0.1f, cam.aspect);
-            float distance = Mathf.Max(halfW / tanH, halfH / tanV) + 1f;
-            var rotation = Quaternion.Euler(pitch, 0, 0);
-            cam.transform.SetPositionAndRotation(center - rotation * Vector3.forward * distance, rotation);
-        }
 
         /// <summary>The tile under a screen position, if it is on the board.</summary>
         public Point? ScreenToTile(Camera cam, Vector2 screen)

@@ -108,6 +108,32 @@ namespace ShardsOfEternity.Game
             BeginFloor();
         }
 
+        /// <summary>Testing aid: stop where the floor is and make camp, as if the squad had taken the exit.</summary>
+        public void MakeCampNow()
+        {
+            if (Run == null) return;
+            StopAllCoroutines();
+            SetPaused(false);
+            Busy = false;
+            Run.CollectLoot();
+            InCamp = true;
+        }
+
+        /// <summary>Ends the run and clears the board, for going back to the menus.</summary>
+        public void EndRun()
+        {
+            StopAllCoroutines();
+            SetPaused(false);
+            InCamp = false;
+            Busy = false;
+            Run = null;
+            Options = null;
+            AbilityIndex = -1;
+            Pending = null;
+            Hover = null;
+            Board.Clear();
+        }
+
         public void SetPaused(bool paused)
         {
             Paused = paused;
@@ -116,9 +142,14 @@ namespace ShardsOfEternity.Game
 
         void Update()
         {
-            if (Camera != null && Board != null) Board.FrameCamera(Camera);
             if (Battle == null) return;
             if (Input.GetKeyDown(KeyCode.P)) SetPaused(!Paused);
+            else if (Input.GetKeyDown(KeyCode.Escape))
+            {
+                // Esc backs out one step: cancel an aimed ability first, otherwise open or close the pause menu.
+                if (!Paused && (AbilityIndex >= 0 || Pending.HasValue)) Cancel();
+                else if (!InCamp && !Battle.IsOver) SetPaused(!Paused);
+            }
             if (Paused) return;
             TickReinforcements();
             HandleKeys();
@@ -351,7 +382,6 @@ namespace ShardsOfEternity.Game
             if (Input.GetKeyDown(KeyCode.Alpha3)) ToggleAbility(2);
             if (Input.GetKeyDown(KeyCode.Alpha4)) ToggleAbility(3);
             if (Input.GetKeyDown(KeyCode.E)) EndTurn();
-            if (Input.GetKeyDown(KeyCode.Escape)) Cancel();
         }
 
         void HandlePointer()
