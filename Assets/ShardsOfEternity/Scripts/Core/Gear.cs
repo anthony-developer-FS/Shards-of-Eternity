@@ -236,6 +236,9 @@ namespace ShardsOfEternity.Core
                 case EnemyKind.Ghoul: chance = .25; break;
                 case EnemyKind.Imp: chance = .3; break;
                 case EnemyKind.Hellknight: chance = .6; break;
+                case EnemyKind.Cultist: chance = .35; break;
+                case EnemyKind.Hellhound: chance = .25; break;
+                case EnemyKind.RiftCaller: chance = .6; break;
                 default: chance = 1; break;
             }
             return enemy.IsReinforcement ? chance / 2 : chance;

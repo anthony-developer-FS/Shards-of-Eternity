@@ -24,7 +24,18 @@ namespace ShardsOfEternity.Core
         readonly bool handmadeFirstFloor;
 
         public RunKind Kind { get; }
+        /// <summary>The theme of the first floor. Raids move to the next theme every <see cref="FloorsPerTheme"/> floors.</summary>
         public Theme Theme { get; }
+        public const int FloorsPerTheme = 3;
+
+        /// <summary>Theme of a 1-based floor: dungeons keep one theme, raids rotate through them all.</summary>
+        public Theme ThemeFor(int floor)
+        {
+            if (Kind != RunKind.Raid) return Theme;
+            int start = System.Array.IndexOf(Theme.All, Theme);
+            if (start < 0) return Theme;
+            return Theme.All[(start + (floor - 1) / FloorsPerTheme) % Theme.All.Length];
+        }
         public int FloorCount { get; }
         /// <summary>1-based number of the floor being played.</summary>
         public int Floor { get; private set; }
@@ -92,7 +103,7 @@ namespace ShardsOfEternity.Core
             int floorSeed = unchecked(seed + Floor * 7919);
             RoomLayout room;
             if (Floor == 1 && handmadeFirstFloor && !IsFinalFloor) room = RoomLayout.Prototype();
-            else room = RoomGenerator.Generate(floorSeed, Theme, bossFloor: IsFinalFloor);
+            else room = RoomGenerator.Generate(floorSeed, ThemeFor(Floor), bossFloor: IsFinalFloor, floor: Floor);
             room.IsFinalFloor = IsFinalFloor;
             room.Floor = Floor;
 

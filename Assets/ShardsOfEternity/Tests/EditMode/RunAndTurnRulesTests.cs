@@ -215,8 +215,31 @@ namespace ShardsOfEternity.Tests
             }
         }
 
-        /// <summary>Naive policy: attack anything in reach, else step toward the nearest enemy, or the exit once clear.</summary>
-        static void PlayHero(Battle b, Unit u)
+        /// <summary>Walking steps from every tile to <paramref name="goal"/>, around walls and ignoring units.</summary>
+        static int[,] StepsTo(Battle b, Point goal)
+        {
+            var steps = new int[b.Width, b.Height];
+            for (int y = 0; y < b.Height; y++)
+                for (int x = 0; x < b.Width; x++) steps[x, y] = int.MaxValue;
+            var queue = new System.Collections.Generic.Queue<Point>();
+            steps[goal.X, goal.Y] = 0;
+            queue.Enqueue(goal);
+            while (queue.Count > 0)
+            {
+                var c = queue.Dequeue();
+                foreach (var d in Point.Directions)
+                {
+                    var n = c + d;
+                    if (b.IsWall(n.X, n.Y) || steps[n.X, n.Y] != int.MaxValue) continue;
+                    steps[n.X, n.Y] = steps[c.X, c.Y] + 1;
+                    queue.Enqueue(n);
+                }
+            }
+            return steps;
+        }
+
+        /// <summary>Naive policy: attack anything in reach, else walk toward the nearest enemy, or the exit once clear.</summary>
+        internal static void PlayHero(Battle b, Unit u)
         {
             for (int i = 0; i < 4 && !b.IsOver && !b.CurrentTurnSpent; i++)
             {
@@ -230,8 +253,9 @@ namespace ShardsOfEternity.Tests
                     ? b.Map.Find(TileType.Exit)
                     : b.Enemies.OrderBy(e => Point.Distance(e.Position, u.Position)).Select(e => (Point?)e.Position).FirstOrDefault();
                 if (!goal.HasValue || !b.CanMove(u)) return;
-                var move = b.MoveOptions(u).OrderBy(m => Point.Distance(m.Target, goal.Value)).FirstOrDefault();
-                if (move == null || Point.Distance(move.Target, goal.Value) >= Point.Distance(u.Position, goal.Value)) return;
+                var steps = StepsTo(b, goal.Value);
+                var move = b.MoveOptions(u).OrderBy(m => steps[m.Target.X, m.Target.Y]).FirstOrDefault();
+                if (move == null || steps[move.Target.X, move.Target.Y] >= steps[u.X, u.Y]) return;
                 b.TryMove(move.Target);
             }
         }

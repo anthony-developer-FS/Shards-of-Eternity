@@ -24,6 +24,7 @@ Runs are 3-4 floor dungeons or 12 floor raids of generated rooms, ending with a 
 Open `prototype/index.html` in a browser. It has no build step and no dependencies.
 
 - Pick 4 of the 7 human classes: Barbarian, Paladin, Rogue, Sorcerer, Hunter, Shaman and Priest. The Priest can bring fallen heroes back.
+- Four rift themes with their own enemies, including Cultist healers, Hellhound chargers and Imp-summoning Rift Callers. Raids change theme every 3 floors, and deeper floors are harder.
 - Turn order follows Attack Speed, and the timeline shows the next 10 turns.
 - Each class has its own movement rule, such as the Barbarian's 12-tile charge or the Shaman's swap.
 - Each hero has 3 abilities and an ultimate. The ultimate charges as the hero fights.

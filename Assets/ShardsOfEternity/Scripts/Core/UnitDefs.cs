@@ -24,6 +24,12 @@ namespace ShardsOfEternity.Core
         Ghoul,
         Imp,
         Hellknight,
+        /// <summary>Back-line caster that heals wounded demons instead of attacking.</summary>
+        Cultist,
+        /// <summary>Fast charger that hits harder after a long dash.</summary>
+        Hellhound,
+        /// <summary>Summoner that pulls Imps through small rifts.</summary>
+        RiftCaller,
         /// <summary>Boss of a run's final floor.</summary>
         RiftLord,
     }
@@ -81,6 +87,12 @@ namespace ShardsOfEternity.Core
             Enemy(EnemyKind.Ghoul, "Ghoul", "g", 16, 6, 0, 9, 4, 1, "Melee. Shambles toward the nearest hero."),
             Enemy(EnemyKind.Imp, "Imp", "i", 10, 5, 0, 13, 4, 4, "Ranged, 4 tiles. Backs away from melee."),
             Enemy(EnemyKind.Hellknight, "Hellknight", "K", 30, 9, 3, 6, 3, 1, "Slow, armored and hits hard."),
+            Enemy(EnemyKind.Cultist, "Cultist", "c", 14, 4, 0, 10, 3, 3,
+                "Ranged, 3 tiles. Heals a badly wounded demon within 3 tiles for 8 instead of attacking."),
+            Enemy(EnemyKind.Hellhound, "Hellhound", "h", 12, 5, 0, 14, 6, 1,
+                "Fast. Pounce: +3 damage when it dashes 3 or more tiles before biting."),
+            Enemy(EnemyKind.RiftCaller, "Rift Caller", "R", 20, 4, 1, 8, 3, 3,
+                "Ranged, 3 tiles. Every other turn it summons an Imp beside it instead of attacking, up to 2 at a time."),
             Boss(EnemyKind.RiftLord, "Rift Lord", "L", 80, 9, 3, 9, 3, 1, "Boss. Cleaves every hero next to it."),
         };
 

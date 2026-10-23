@@ -29,6 +29,14 @@ A run is a descent through several floors: a **dungeon** has 3 or 4, a **raid** 
 
 Once a room wakes, **reinforcements** arrive on a real-time timer: the first wave after 10 minutes, the second 5 minutes later, then one every 2 minutes. The timer restarts at 10 minutes on each new floor. For quick testing, turn on **Fast 2-min timer** on the squad screen. The countdown is at the top right; **Pause** (or P) stops it. Rift pressure still rises with the turn timeline, but now only shifts the walls.
 
+**Enemies and themes.** Each run is set in a theme with its own enemy mix: the **Ashen Crypt** (Ghouls), the **Hellforge** (Imps and Hellknights), the **Shadow Cathedral** (Cultists and Rift Callers) and the **Howling Wastes** (Hellhound packs). A dungeon keeps one theme. A raid moves to the next theme every 3 floors. Besides Ghouls, Imps and Hellknights you will meet:
+
+- **Cultist**: attacks from 3 tiles, but heals a badly wounded demon within 3 tiles for 8 instead.
+- **Hellhound**: fast and fragile. It moves 6 tiles and bites for +3 after dashing 3 or more.
+- **Rift Caller**: every other turn it summons an Imp beside it, up to 2 at a time. Kill it first.
+
+Deeper floors are harder: enemies gain 8% Health per floor and +1 Damage every 3 floors, and every 4 floors adds an enemy to the room.
+
 **Fallen heroes and the Priest.** A hero at 0 HP falls and stays on the board as a flat grey body. Fallen heroes stay down on later floors too. Sera, the **Priest**, can bring them back: **Resurrection** revives a body within 3 tiles at half HP (6 turn cooldown), and her ultimate **Mass Resurrection** revives every fallen hero next to her at a third of their HP and heals everyone else for 10. **Holy Light** heals 10, **Sanctuary** gives nearby heroes +2 Armor, and all her heals cure poison. If every hero falls, the run is lost.
 
 **Loot.** Slain enemies can drop gear onto their tile, marked by a beam of light in the item's rarity color: white for Common, blue for Magic, yellow for Rare and orange for Legendary. Better items get taller beams, and Rare and Legendary ones light up the floor around them. Walk a hero over the tile to pick the items up. Anything still on the floor when you take the exit is left behind. The boss always drops two Rare or better items. Deeper floors drop better rarities and bigger stats.
@@ -53,7 +61,7 @@ You can also select the **Shards of Eternity** object in the scene and set the s
 
 ## 5. Run the tests
 
-Open **Window > General > Test Runner**, choose **EditMode**, and press **Run All**. There are 50 tests covering body blocking, the Priest and revives, turn order, damage, abilities, enemy turns, room generation, floors and the boss, action shards, loot and gear, and simulated battles and whole runs.
+Open **Window > General > Test Runner**, choose **EditMode**, and press **Run All**. There are 60 tests covering body blocking, the Priest and revives, enemy behaviors, themes and floor scaling, turn order, damage, abilities, enemy turns, room generation, floors and the boss, action shards, loot and gear, and simulated battles and whole runs.
 
 ## 6. Commit the files Unity generates
 
@@ -75,7 +83,7 @@ Never commit `Library/`, `Temp/`, `Logs/` or `UserSettings/`. The `.gitignore` a
 
 | Folder | What it is |
 | --- | --- |
-| `Assets/ShardsOfEternity/Scripts/Core` | The game rules in plain C# with no Unity dependency: board, pathing, body blocking, turn timeline, damage, all 28 abilities, enemy AI, rift pressure and the room generator. |
+| `Assets/ShardsOfEternity/Scripts/Core` | The game rules in plain C# with no Unity dependency: board, pathing, body blocking, turn timeline, damage, all 28 abilities, enemy AI, rift pressure, the room generator and the themes. |
 | `Assets/ShardsOfEternity/Scripts/Game` | The Unity side: `GameBootstrap` builds the scene, `BoardView` draws and animates, `BattleController` runs the turn loop and input, `BattleHud` is a temporary on-screen UI. |
 | `Assets/ShardsOfEternity/Editor` | Creates the prototype scene and the menu item. |
 | `Assets/ShardsOfEternity/Tests/EditMode` | Unit tests for the rules. |

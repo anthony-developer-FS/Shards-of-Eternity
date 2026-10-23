@@ -42,6 +42,9 @@ namespace ShardsOfEternity.Game
                 {
                     case EnemyKind.Ghoul: return Hex(0x8FA36B);
                     case EnemyKind.Imp: return Hex(0xE0663A);
+                    case EnemyKind.Cultist: return Hex(0x8E6BC9);
+                    case EnemyKind.Hellhound: return Hex(0xC9722E);
+                    case EnemyKind.RiftCaller: return Hex(0x3FA6C9);
                     case EnemyKind.RiftLord: return Hex(0x6A3AA8);
                     default: return Hex(0x8C2F2F);
                 }
