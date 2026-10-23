@@ -17,7 +17,7 @@ Target platforms: PC and mobile first, VR later. Engine: Unity.
 
 Open the repository folder in Unity Hub with Unity 6.6 (6000.6.7f1) and press Play. The first open creates the prototype scene for you. Full steps, controls and troubleshooting are in [docs/UNITY_SETUP.md](docs/UNITY_SETUP.md).
 
-Runs are 3-4 floor dungeons or 12 floor raids of generated rooms, ending with a boss. Reinforcements arrive on a 2 minute timer, and action shards are available as an experimental turn rule.
+Runs are 3-4 floor dungeons or 12 floor raids of generated rooms, ending with a boss. Reinforcements arrive on a timer (10 minutes, then 5, then every 2), and action shards are available as an experimental turn rule.
 
 ## The combat prototype
 
