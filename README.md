@@ -1,6 +1,6 @@
 # Shards of Eternity
 
-A turn-based tactical dungeon crawler set in Aethra, a world broken when the Veil shattered. You lead a squad of four heroes through rifts that rebuild themselves every time you enter. The game mixes Demeo's board, Diablo's loot and RAID's squad building, and it plays like chess.
+A turn-based tactical dungeon crawler set in Aethra, a world broken when the Veil shattered. You lead a squad of four heroes through rifts that rebuild themselves every time you enter.
 
 Target platforms: PC and mobile first, VR later. Engine: Unity.
 
