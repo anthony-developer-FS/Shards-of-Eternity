@@ -105,6 +105,26 @@ namespace ShardsOfEternity.Core
 
         public double Total(StatType stat) => items.Values.Sum(i => i.Total(stat));
 
+        public bool Contains(GearItem item) => items.ContainsValue(item);
+
+        /// <summary>A new loadout holding the same items, in the same slots.</summary>
+        public Loadout Clone()
+        {
+            var copy = new Loadout();
+            foreach (var kv in items) copy.items[kv.Key] = kv.Value;
+            return copy;
+        }
+
+        /// <summary>Puts an item in an exact slot, for loading saves. Returns what it replaced.</summary>
+        public GearItem Put(GearSlot slot, GearItem item)
+        {
+            var old = this[slot];
+            items[slot] = item;
+            return old;
+        }
+
+        public IEnumerable<KeyValuePair<GearSlot, GearItem>> Slots => items;
+
         /// <summary>The item this one would replace if equipped now, for comparisons.</summary>
         public GearItem WouldReplace(GearItem item)
         {

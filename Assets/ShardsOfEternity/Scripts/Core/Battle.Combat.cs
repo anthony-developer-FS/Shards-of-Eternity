@@ -74,7 +74,11 @@ namespace ShardsOfEternity.Core
                 t.Alive = false;
                 Say($"{t.Name} falls.");
                 Emit(new BattleEvent { Type = BattleEventType.Died, Unit = t });
-                if (t.IsEnemy) DropLoot(t);
+                if (t.IsEnemy)
+                {
+                    Slain.Add(t);
+                    DropLoot(t);
+                }
             }
             CheckEnd();
         }

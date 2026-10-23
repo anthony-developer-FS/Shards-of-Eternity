@@ -45,6 +45,19 @@ namespace ShardsOfEternity.Game
         float NextReinforcementDelay() =>
             FastTestTimer ? 120f : new ReinforcementSchedule(ReinforcementDelays).SecondsBefore(Battle.WavesCalled);
 
+        /// <summary>Hero levels, gear and the vault, loaded from disk the first time it's needed.</summary>
+        public Profile Profile
+        {
+            get
+            {
+                if (profile == null) profile = ProfileStore.Load();
+                return profile;
+            }
+        }
+        Profile profile;
+        /// <summary>What the last finished run paid out, for the end screen.</summary>
+        public RunResult LastResult { get; private set; }
+
         public DungeonRun Run { get; private set; }
         public Battle Battle => Run?.Battle;
         public bool Busy { get; private set; }
@@ -66,6 +79,8 @@ namespace ShardsOfEternity.Game
             StopAllCoroutines();
             SetPaused(false);
             InCamp = false;
+            FinishRun();
+            LastResult = null;
             if (!SquadReady)
             {
                 Run = null;
@@ -73,10 +88,8 @@ namespace ShardsOfEternity.Game
                 return;
             }
             int seed = Seed != 0 ? Seed : Random.Range(1, int.MaxValue);
-            Run = new DungeonRun(RunKind, Squad, seed, handmadeFirstFloor: HandmadeFirstFloor)
-            {
-                Rules = new TurnRules { UseActionShards = UseActionShards, ShardsPerTurn = 2, ShardCap = BankShards ? 4 : 2 },
-            };
+            Run = Profile.StartRun(RunKind, Squad, seed, handmadeFirstFloor: HandmadeFirstFloor,
+                rules: new TurnRules { UseActionShards = UseActionShards, ShardsPerTurn = 2, ShardCap = BankShards ? 4 : 2 });
             Run.NextFloor();
             BeginFloor();
         }
@@ -119,9 +132,36 @@ namespace ShardsOfEternity.Game
             InCamp = true;
         }
 
-        /// <summary>Ends the run and clears the board, for going back to the menus.</summary>
+        /// <summary>
+        /// Pays the current run into the profile and saves, once. Called when the run is won or lost, and when it's
+        /// restarted, abandoned or the game quits mid-run, which count as a defeat. Returns what the run paid out.
+        /// </summary>
+        public RunResult FinishRun()
+        {
+            if (Run == null || Run.Settled) return LastResult;
+            LastResult = Profile.Settle(Run);
+            ProfileStore.Save(Profile);
+            return LastResult;
+        }
+
+        /// <summary>Saves the profile after changes made outside a run, like equipping gear in the Armory.</summary>
+        public void SaveProfile() => ProfileStore.Save(Profile);
+
+        /// <summary>Wipes every level, item and stat, and deletes the save.</summary>
+        public void ResetProgress()
+        {
+            EndRun();
+            profile = new Profile();
+            LastResult = null;
+            ProfileStore.Delete();
+        }
+
+        void OnApplicationQuit() => FinishRun();
+
+        /// <summary>Ends the run (paying it out if it hasn't been yet) and clears the board, for going back to the menus.</summary>
         public void EndRun()
         {
+            FinishRun();
             StopAllCoroutines();
             SetPaused(false);
             InCamp = false;
@@ -143,6 +183,7 @@ namespace ShardsOfEternity.Game
         void Update()
         {
             if (Battle == null) return;
+            if (Battle.Outcome == BattleOutcome.Victory || Battle.Outcome == BattleOutcome.Defeat) FinishRun();
             if (Input.GetKeyDown(KeyCode.P)) SetPaused(!Paused);
             else if (Input.GetKeyDown(KeyCode.Escape))
             {

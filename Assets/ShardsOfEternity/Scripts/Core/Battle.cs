@@ -76,6 +76,8 @@ namespace ShardsOfEternity.Core
         public Dictionary<Point, List<GearItem>> GroundLoot { get; } = new Dictionary<Point, List<GearItem>>();
         /// <summary>Items heroes picked up on this floor.</summary>
         public List<GearItem> PickedUp { get; } = new List<GearItem>();
+        /// <summary>Enemies slain on this floor, in order. Runs pay XP for them.</summary>
+        public List<Unit> Slain { get; } = new List<Unit>();
         public int GroundLootCount => GroundLoot.Values.Sum(l => l.Count);
         public BattleOutcome Outcome { get; private set; }
         public bool IsOver => Outcome != BattleOutcome.None;

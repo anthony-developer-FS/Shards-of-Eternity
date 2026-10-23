@@ -48,6 +48,20 @@ namespace ShardsOfEternity.Core
         /// <summary>Equipped gear by hero id. Applied to the heroes at the start of each floor.</summary>
         public Dictionary<string, Loadout> Loadouts { get; } = new Dictionary<string, Loadout>();
 
+        /// <summary>Hero levels by id, from the profile. Missing heroes are level 1.</summary>
+        public Dictionary<string, int> Levels { get; } = new Dictionary<string, int>();
+        /// <summary>Set once a profile has paid out this run, so it only pays once.</summary>
+        public bool Settled { get; internal set; }
+
+        int xpBanked, killsBanked;
+
+        /// <summary>XP the squad has earned so far this run. Each hero in the squad gets all of it.</summary>
+        public int Xp => xpBanked + Progression.XpFor(Battle, Kind);
+        public int Kills => killsBanked + (Battle?.Slain.Count ?? 0);
+        public bool Won => Battle?.Outcome == BattleOutcome.Victory;
+
+        public int LevelOf(string heroId) => Levels.TryGetValue(heroId, out var l) ? l : 1;
+
         public IReadOnlyList<string> Squad => squad;
 
         public Loadout LoadoutFor(string heroId)
@@ -99,6 +113,8 @@ namespace ShardsOfEternity.Core
             if (Floor >= FloorCount) return false;
             CollectLoot();
             var previous = Battle;
+            xpBanked += Progression.XpFor(previous, Kind);
+            killsBanked += previous?.Slain.Count ?? 0;
             Floor++;
             int floorSeed = unchecked(seed + Floor * 7919);
             RoomLayout room;
@@ -108,7 +124,12 @@ namespace ShardsOfEternity.Core
             room.Floor = Floor;
 
             Battle = new Battle(room, squad, floorSeed) { Rules = Rules, LootEnabled = true };
-            foreach (var hero in Battle.Units.Where(u => u.IsHero)) Gear.ApplyTo(hero, LoadoutFor(hero.Def.Id));
+            foreach (var hero in Battle.Units.Where(u => u.IsHero))
+            {
+                hero.Level = LevelOf(hero.Def.Id);
+                Progression.ApplyTo(hero, hero.Level);
+                Gear.ApplyTo(hero, LoadoutFor(hero.Def.Id));
+            }
             if (previous != null) Battle.CarryOver(previous.Units.Where(u => u.IsHero));
             Battle.Start();
             return true;

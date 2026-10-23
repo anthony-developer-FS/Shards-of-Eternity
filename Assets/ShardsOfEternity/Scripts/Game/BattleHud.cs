@@ -17,6 +17,8 @@ namespace ShardsOfEternity.Game
         {
             Title,
             Squad,
+            /// <summary>Hero levels, equipped gear and the vault, between runs.</summary>
+            Armory,
             /// <summary>No menu: the battle HUD is showing.</summary>
             None,
         }
@@ -119,6 +121,14 @@ namespace ShardsOfEternity.Game
             BuildSquad();
         }
 
+        public void ShowArmory()
+        {
+            EnsureBuilt();
+            CurrentMenu = Menu.Armory;
+            SettingsOpen = false;
+            BuildArmory();
+        }
+
         /// <summary>Starts a run with the squad and rules picked on the squad screen.</summary>
         public void StartRun()
         {
@@ -141,6 +151,7 @@ namespace ShardsOfEternity.Game
         {
             if (CurrentMenu == Menu.Title) BuildTitle();
             else if (CurrentMenu == Menu.Squad) BuildSquad();
+            else if (CurrentMenu == Menu.Armory) BuildArmory();
         }
 
         /// <summary>True if a screen position (bottom-left origin, like Input.mousePosition) is over a UI element.</summary>
@@ -333,6 +344,19 @@ namespace ShardsOfEternity.Game
 
         /// <summary>An item's name in its rarity color.</summary>
         static string RarityName(GearItem item) => Ui.Colored(item.Name, Palette.ForRarity(item.Rarity));
+
+        /// <summary>A hero as they'd start the next floor: base stats plus level bonuses plus gear.</summary>
+        static Unit PreviewHero(UnitDef def, int level, Loadout loadout)
+        {
+            var u = new Unit(-1, def, default) { Level = level };
+            Progression.ApplyTo(u, level);
+            Gear.ApplyTo(u, loadout);
+            return u;
+        }
+
+        static string StatsText(Unit u) =>
+            $"Health {u.MaxHp} · Damage {u.Damage} · Armor {u.Armor} · Speed {u.Speed} · Move {u.Move} · " +
+            $"Crit {Mathf.RoundToInt((float)u.Crit * 100)}% +{Mathf.RoundToInt((float)u.CritDamage * 100)}%";
 
         static string StatLine(GearItem item) => string.Join(", ", item.Stats.Select(s => s.ToString()));
 

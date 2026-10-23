@@ -28,6 +28,7 @@ namespace ShardsOfEternity.Game
         public static readonly Color ActiveRing = Hex(0xFFE08A);
         public static readonly Color Heal = Hex(0x6EE7A0);
         public static readonly Color Crit = Hex(0xFFD54A);
+        public static readonly Color Xp = Hex(0x9C7CF5);
         public static readonly Color Pillar = Hex(0x6B6F7D);
         public static readonly Color Fallen = Hex(0x55585F);
 

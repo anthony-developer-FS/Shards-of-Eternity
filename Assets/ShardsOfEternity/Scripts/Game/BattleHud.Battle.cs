@@ -145,7 +145,7 @@ namespace ShardsOfEternity.Game
             bool canAct = hero && !Controller.Busy && !Controller.Paused && !Battle.IsOver;
 
             unitName.SetText(u.Name);
-            unitSubtitle.SetText(u.Def.Subtitle);
+            unitSubtitle.SetText(hero ? $"Level {u.Level} {u.Def.Subtitle}" : u.Def.Subtitle);
             hpFill.SetFill((float)u.Hp / u.MaxHp, hero ? Palette.Heal : Palette.AttackTarget);
             hpText.SetText($"{u.Hp} / {u.MaxHp}");
             statsLabel.SetText($"DMG {u.Damage} · ARM {u.EffectiveArmor} · SPD {u.Speed} · MOV {u.Move} · RNG {u.Range} · " +
