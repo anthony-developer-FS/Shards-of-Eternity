@@ -157,9 +157,10 @@ namespace ShardsOfEternity.Game
             foreach (var u in battle.Units)
             {
                 if (!units.TryGetValue(u, out var t) || t == null) continue;
-                t.gameObject.SetActive(u.Alive);
+                // Fallen heroes stay on the board as a flat grey body, so a Priest can find them.
+                t.gameObject.SetActive(u.Alive || u.IsHero);
                 t.localPosition = TileToWorld(u.Position);
-                t.localScale = Vector3.one;
+                t.localScale = u.Alive ? Vector3.one : FallenScale;
             }
             RecolorUnits();
 
@@ -173,14 +174,16 @@ namespace ShardsOfEternity.Game
         {
             foreach (var u in battle.Units)
             {
-                if (!u.Alive || (units.TryGetValue(u, out var t) && t != null)) continue;
+                if ((!u.Alive && !u.IsHero) || (units.TryGetValue(u, out var t) && t != null)) continue;
                 t = CreateUnit(u);
                 t.localPosition = TileToWorld(u.Position);
                 units[u] = t;
             }
         }
 
-        /// <summary>Sleeping enemies are drawn darker.</summary>
+        static readonly Vector3 FallenScale = new Vector3(1.1f, 0.18f, 1.1f);
+
+        /// <summary>Sleeping enemies are drawn darker, fallen heroes grey.</summary>
         void RecolorUnits()
         {
             foreach (var pair in units)
@@ -189,7 +192,8 @@ namespace ShardsOfEternity.Game
                 var u = pair.Key;
                 var color = Palette.ForUnit(u);
                 pair.Value.GetChild(0).GetComponent<Renderer>().sharedMaterial =
-                    Palette.Mat(u.IsEnemy && !u.Awake ? Color.Lerp(color, Color.black, 0.45f) : color);
+                    Palette.Mat(!u.Alive ? Color.Lerp(color, Palette.Fallen, 0.75f)
+                        : u.IsEnemy && !u.Awake ? Color.Lerp(color, Color.black, 0.45f) : color);
             }
         }
 
@@ -338,8 +342,24 @@ namespace ShardsOfEternity.Game
                     break;
                 case BattleEventType.Died:
                     if (t == null) break;
+                    if (e.Unit.IsHero)
+                    {
+                        yield return Scale(t, 0.6f, 0.2f);
+                        t.localScale = FallenScale;
+                        RecolorUnits();
+                        break;
+                    }
                     yield return Scale(t, 0.05f, 0.3f);
                     t.gameObject.SetActive(false);
+                    break;
+                case BattleEventType.Revived:
+                    if (t == null) break;
+                    t.gameObject.SetActive(true);
+                    t.localPosition = TileToWorld(e.To);
+                    t.localScale = Vector3.one * 0.3f;
+                    RecolorUnits();
+                    if (Hud != null) Hud.AddFloater(t.position, "Revived", Palette.Heal, true);
+                    yield return Scale(t, 1f, 0.3f);
                     break;
                 case BattleEventType.Spawned:
                     EnsureUnitViews();

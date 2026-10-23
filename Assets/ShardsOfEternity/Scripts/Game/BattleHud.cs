@@ -248,7 +248,7 @@ namespace ShardsOfEternity.Game
         void DrawSquadPicker()
         {
             GUILayout.Label("Pick your squad", title);
-            GUILayout.Label($"Choose 4 of the 6 human classes. {Controller.Squad.Count}/4 picked.", label);
+            GUILayout.Label($"Choose 4 of the {Roster.Heroes.Count} human classes. {Controller.Squad.Count}/4 picked.", label);
             foreach (var def in Roster.Heroes)
             {
                 int slot = Controller.Squad.IndexOf(def.Id);

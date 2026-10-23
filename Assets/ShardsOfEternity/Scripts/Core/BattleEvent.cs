@@ -20,6 +20,8 @@ namespace ShardsOfEternity.Core
         Damaged,
         Healed,
         Died,
+        /// <summary>A fallen hero got back up at <see cref="BattleEvent.To"/>.</summary>
+        Revived,
         Spawned,
         RoomWoke,
         /// <summary>A wall shift was telegraphed; see <see cref="Battle.PendingShift"/>.</summary>

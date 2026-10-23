@@ -79,13 +79,62 @@ namespace ShardsOfEternity.Core
             CheckEnd();
         }
 
-        public void Heal(Unit h, int n)
+        /// <summary>Heals up to <paramref name="n"/>. A Priest's heals also cure poison.</summary>
+        public void Heal(Unit h, int n, Unit healer = null)
         {
+            if (healer != null && healer.Is(HeroClass.Priest) && h.Poison > 0)
+            {
+                h.Poison = 0;
+                Say($"{h.Name} is cured of poison.");
+            }
             n = Math.Min(n, h.MaxHp - h.Hp);
             if (n <= 0) return;
             h.Hp += n;
             Emit(new BattleEvent { Type = BattleEventType.Healed, Unit = h, Amount = n });
             Say($"{h.Name} recovers {n} HP.");
+        }
+
+        /// <summary>Heroes who have fallen this run. Their bodies stay where they fell.</summary>
+        public IEnumerable<Unit> FallenHeroes => Units.Where(u => !u.Alive && u.IsHero);
+
+        public Unit FallenAt(Point p) => FallenHeroes.FirstOrDefault(h => h.Position == p);
+
+        /// <summary>The closest empty tile a unit could stand on, starting with <paramref name="p"/> itself.</summary>
+        public Point? FreeTileNear(Point p)
+        {
+            Point? best = null;
+            int bestDistance = int.MaxValue;
+            for (int y = 1; y < Height - 1; y++)
+                for (int x = 1; x < Width - 1; x++)
+                {
+                    if (IsWall(x, y) || Map[x, y] == TileType.Exit || UnitAt(x, y) != null) continue;
+                    int d = Point.Distance(x, y, p.X, p.Y);
+                    if (d < bestDistance)
+                    {
+                        best = new Point(x, y);
+                        bestDistance = d;
+                    }
+                }
+            return best;
+        }
+
+        /// <summary>Brings a fallen hero back at <paramref name="at"/>. Their next turn comes one turn interval from now.</summary>
+        public void Revive(Unit h, Point at, int hp)
+        {
+            if (h == null || h.Alive) return;
+            h.Alive = true;
+            h.Hp = Math.Min(h.MaxHp, Math.Max(1, hp));
+            h.X = at.X;
+            h.Y = at.Y;
+            h.Poison = 0;
+            h.Rooted = false;
+            h.Marked = 0;
+            h.ArmorBuff = 0;
+            h.Shards = 0;
+            h.Recovery = 0;
+            h.NextTurnAt = Clock + h.TurnInterval;
+            Say($"{h.Name} rises again with {h.Hp} HP.");
+            Emit(new BattleEvent { Type = BattleEventType.Revived, Unit = h, To = at });
         }
 
         /// <summary>Moves a unit's next turn earlier on the timeline.</summary>
@@ -220,6 +269,10 @@ namespace ShardsOfEternity.Core
                             int d = Point.Distance(x, y, u.X, u.Y);
                             if (d <= a.Range && (d == 0 || LineOfSight(u.X, u.Y, x, y))) output.Add(new Point(x, y));
                         }
+                    break;
+                case TargetKind.FallenAlly:
+                    output.AddRange(FallenHeroes.Where(h => Point.Distance(h.Position, u.Position) <= a.Range && Need(h))
+                        .Select(h => h.Position).Distinct());
                     break;
                 case TargetKind.AnyTile:
                     for (int y = 1; y < Height - 1; y++)
